@@ -369,7 +369,11 @@
     <div class="main-actions">
         <button class="btn btn-primary" onclick="formatJson()">格式化</button>
         <button class="btn btn-default" onclick="minifyJson()">压缩</button>
+        <button class="btn btn-default" onclick="fixJson()">修复 JSON</button>
         <button class="btn btn-default" onclick="clearAll()">清空重置</button>
+        <div style="width: 15px;"></div>
+        <button class="btn btn-default" onclick="undo()" title="撤销 (Ctrl+Z)">↩️ 撤销</button>
+        <button class="btn btn-default" onclick="redo()" title="重做 (Ctrl+Y)">↪️ 重做</button>
     </div>
 
     <div id="error-msg"></div>
@@ -415,6 +419,94 @@
         let currentObj = null; // Store parsed object
         let originalObj = null; // Store original parsed object
         let isMinified = false;
+
+        // Undo/Redo State
+        const historyStack = [];
+        let historyIndex = -1;
+        let isInputting = false;
+
+        // Init history
+        saveState();
+
+        inputArea.addEventListener('input', () => {
+            if (!isInputting) {
+                isInputting = true;
+                setTimeout(() => {
+                    saveState();
+                    isInputting = false;
+                }, 500); // Debounce
+            }
+        });
+
+        // Key bindings
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                undo();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                e.preventDefault();
+                redo();
+            }
+        });
+
+        function saveState() {
+            const val = inputArea.value;
+            // Don't save duplications at the top
+            if (historyIndex >= 0 && historyStack[historyIndex] === val) return;
+
+            // Slice forward history if we are in middle
+            if (historyIndex < historyStack.length - 1) {
+                historyStack.splice(historyIndex + 1);
+            }
+            historyStack.push(val);
+            historyIndex++;
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                inputArea.value = historyStack[historyIndex];
+            }
+        }
+
+        function redo() {
+            if (historyIndex < historyStack.length - 1) {
+                historyIndex++;
+                inputArea.value = historyStack[historyIndex];
+            }
+        }
+
+        function fixJson() {
+            let raw = inputArea.value.trim();
+            if (!raw) return;
+
+            try {
+                // 1. Remove comments
+                raw = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+
+                // 2. Remove JSONP (callback({ ... }))
+                // Match pattern: start with word+alphanum, then (, then object/array, then ) at end
+                const jsonpMatch = raw.match(/^\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(([\s\S]*)\)\s*;?\s*$/);
+                if (jsonpMatch && jsonpMatch[1]) {
+                    raw = jsonpMatch[1];
+                }
+
+                // 3. Convert JS Object to JSON (quotes, etc)
+                // New Function is dangerous if input is malicious, but standard for client-side tool
+                // This handles { a: 1, 'b': 2 } -> { "a": 1, "b": 2 }
+                const fn = new Function("return " + raw);
+                const obj = fn();
+
+                inputArea.value = JSON.stringify(obj, null, 4);
+                formatJson(); // Auto format after fix
+                saveState(); // Save fixed state
+                showToast("修复并格式化成功 ✅");
+
+            } catch (e) {
+                showError({ message: "修复失败: " + e.message + " (请检查是否为有效JS对象)" });
+            }
+        }
 
         function formatJson() {
             const raw = inputArea.value.trim();
@@ -535,6 +627,13 @@
                 const keySpan = document.createElement('span');
                 keySpan.className = 'key';
                 keySpan.textContent = `"${key}"`;
+                if (isObj) {
+                    keySpan.style.cursor = 'pointer';
+                    keySpan.ondblclick = (e) => {
+                        e.stopPropagation();
+                        toggleRow(row);
+                    };
+                }
                 contentBox.appendChild(keySpan);
 
                 const colon = document.createElement('span');
@@ -554,6 +653,11 @@
                 const open = document.createElement('span');
                 open.className = 'punctuation';
                 open.textContent = isArr ? '[' : '{';
+                open.style.cursor = 'pointer';
+                open.ondblclick = (e) => {
+                    e.stopPropagation();
+                    toggleRow(row);
+                };
                 contentBox.appendChild(open);
 
                 // ** Preview Area (Visible only when collapsed) **
