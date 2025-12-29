@@ -2,6 +2,11 @@
 
 一系列实用的开发小工具合集。
 
+## 项目地址
+
+- **GitHub 仓库**: https://github.com/hizengbiao/dev-tools#
+- **在线访问**: https://hizengbiao.github.io/dev-tools/
+
 ## 可用工具
 
 - **JSON 格式化工具** (`json-parser.html`): 格式化、压缩、修复 JSON。
