@@ -391,6 +391,9 @@
                 <div>
                     <button class="icon-btn" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
                     <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
+                    <button class="icon-btn" onclick="sortJson(true)" title="按Key升序排列">⬇️ 升序</button>
+                    <button class="icon-btn" onclick="sortJson(false)" title="按Key降序排列">⬆️ 降序</button>
+                    <button class="icon-btn" onclick="resetOrder()" title="恢复原始顺序">🔄 原序</button>
                     <button class="icon-btn" onclick="copyResult()" title="复制结果文本">📋 复制</button>
                 </div>
             </div>
@@ -410,6 +413,7 @@
         const errorMsg = document.getElementById('error-msg');
 
         let currentObj = null; // Store parsed object
+        let originalObj = null; // Store original parsed object
         let isMinified = false;
 
         function formatJson() {
@@ -418,6 +422,7 @@
             try {
                 const parsed = JSON.parse(raw);
                 currentObj = parsed;
+                originalObj = parsed; // Store original
                 errorMsg.style.display = 'none';
                 isMinified = false;
 
@@ -448,6 +453,49 @@
             } catch (e) {
                 showError(e);
             }
+        }
+
+        function sortJson(asc) {
+            if (!currentObj) return;
+            currentObj = sortObject(currentObj, asc);
+
+            // Re-render
+            outputDiv.innerHTML = '';
+            minifiedArea.classList.add('hidden');
+            outputDiv.style.display = 'block';
+
+            const tree = buildTree(currentObj, 0, null, true);
+            outputDiv.appendChild(tree);
+            showToast(asc ? "已按键名升序排列" : "已按键名降序排列");
+        }
+
+        function sortObject(obj, asc) {
+            if (Array.isArray(obj)) {
+                return obj.map(item => sortObject(item, asc));
+            } else if (obj !== null && typeof obj === 'object') {
+                const keys = Object.keys(obj).sort();
+                if (!asc) keys.reverse();
+
+                const newObj = {};
+                keys.forEach(key => {
+                    newObj[key] = sortObject(obj[key], asc);
+                });
+                return newObj;
+            }
+            return obj;
+        }
+
+        function resetOrder() {
+            if (!originalObj) return;
+            currentObj = originalObj;
+
+            outputDiv.innerHTML = '';
+            minifiedArea.classList.add('hidden');
+            outputDiv.style.display = 'block';
+
+            const tree = buildTree(currentObj, 0, null, true);
+            outputDiv.appendChild(tree);
+            showToast("已恢复原始顺序");
         }
 
         // --- Core Tree Builder ---
