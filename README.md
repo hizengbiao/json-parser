@@ -11,6 +11,8 @@
 
 - **JSON 格式化工具** (`json-parser.html`): 格式化、压缩、修复 JSON。
 - **时间戳转换** (`timestamp-converter.html`): Unix 时间戳与日期在线互转，支持多时区。
+- **URL 编解码** (`url-encoder.html`): 提供 URL 编码与解码功能。
+- **Base64 编解码** (`base64-encoder.html`): 支持文本和文件的 Base64 互相转换。
 
 ## 部署到 GitHub Pages
 

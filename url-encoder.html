@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL 编解码工具</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --panel-bg: #ffffff;
+            --border-color: #d1d5db;
+            --text-color: #333;
+            --accent-color: #0969da;
+            --accent-hover: #0a58ca;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .back-link {
+            display: block;
+            margin-bottom: 20px;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #57606a;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 14px;
+            resize: vertical;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        textarea:focus {
+            border-color: #0969da;
+            box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.3);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(27, 31, 35, 0.15);
+            cursor: pointer;
+            background-color: #fff;
+            color: #24292f;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background-color: #f3f4f6;
+        }
+
+        .btn-primary {
+            background-color: #24292f;
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #4b525a;
+        }
+
+        .icon-btn {
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #57606a;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .icon-btn:hover {
+            color: #0969da;
+        }
+
+        #toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 10px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <a href="index.html" class="back-link">← 返回工具箱首页</a>
+        <h1>URL 编解码</h1>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h3>输入文本</h3>
+                <button class="icon-btn" onclick="clearAll()">🗑️ 清空</button>
+            </div>
+            <textarea id="input-text" placeholder="在此输入需要编码或解码的 URL..."></textarea>
+
+            <div class="actions">
+                <button class="btn btn-primary" onclick="doEncode()">编码 (Encode)</button>
+                <button class="btn btn-primary" onclick="doDecode()">解码 (Decode)</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h3>处理结果</h3>
+                <button class="icon-btn" onclick="copyResult()">📋 复制结果</button>
+            </div>
+            <textarea id="output-text" readonly placeholder="结果生成于此..." style="background-color: #f6f8fa;"></textarea>
+        </div>
+    </div>
+
+    <div id="toast">提示信息</div>
+
+    <script>
+        const inputArea = document.getElementById('input-text');
+        const outputArea = document.getElementById('output-text');
+
+        function doEncode() {
+            const val = inputArea.value;
+            if (!val) return;
+            try {
+                // Using encodeURIComponent as it's the most common need (encoding params)
+                // We could offer encodeURI optionally, but usually users want safe strings.
+                outputArea.value = encodeURIComponent(val);
+                showToast("编码成功");
+            } catch (e) {
+                showToast("编码错误: " + e.message);
+                outputArea.value = "Error: " + e.message;
+            }
+        }
+
+        function doDecode() {
+            const val = inputArea.value;
+            if (!val) return;
+            try {
+                outputArea.value = decodeURIComponent(val);
+                showToast("解码成功");
+            } catch (e) {
+                // Often happens with "%" at end or bad sequence
+                showToast("解码错误: 无效的编码序列");
+                outputArea.value = "Error: Invalid URL encoding sequence";
+            }
+        }
+
+        function clearAll() {
+            inputArea.value = '';
+            outputArea.value = '';
+            inputArea.focus();
+        }
+
+        function copyResult() {
+            if (!outputArea.value) return;
+            navigator.clipboard.writeText(outputArea.value).then(() => {
+                showToast("已复制到剪贴板");
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>

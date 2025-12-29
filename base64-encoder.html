@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base64 编解码工具</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --panel-bg: #ffffff;
+            --border-color: #d1d5db;
+            --text-color: #333;
+            --accent-color: #0969da;
+            --accent-hover: #0a58ca;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .back-link {
+            display: block;
+            margin-bottom: 20px;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #57606a;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 14px;
+            resize: vertical;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        textarea:focus {
+            border-color: #0969da;
+            box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.3);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(27, 31, 35, 0.15);
+            cursor: pointer;
+            background-color: #fff;
+            color: #24292f;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background-color: #f3f4f6;
+        }
+
+        .btn-primary {
+            background-color: #24292f;
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #4b525a;
+        }
+
+        .icon-btn {
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #57606a;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .icon-btn:hover {
+            color: #0969da;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid transparent;
+            background-color: rgba(9, 105, 218, 0.1);
+            color: #0969da;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .tab-btn.active {
+            background-color: #0969da;
+            color: white;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .file-drop-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #fafafa;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .file-drop-area:hover {
+            border-color: #0969da;
+            background: #f0f7ff;
+        }
+
+        .file-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #57606a;
+        }
+
+        #toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 10px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <a href="index.html" class="back-link">← 返回工具箱首页</a>
+        <h1>Base64 编解码</h1>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('text')">TXT 文本模式</button>
+            <button class="tab-btn" onclick="switchTab('file')">📂 文件模式</button>
+        </div>
+
+        <!-- Text Mode -->
+        <div id="mode-text" class="panel">
+            <div class="panel-header">
+                <h3>输入文本</h3>
+                <button class="icon-btn" onclick="clearText()">🗑️ 清空</button>
+            </div>
+            <textarea id="input-text" placeholder="在此输入需要处理的文本..."></textarea>
+
+            <div class="actions">
+                <button class="btn btn-primary" onclick="doTextEncode()">编码 (Encode)</button>
+                <button class="btn btn-primary" onclick="doTextDecode()">解码 (Decode)</button>
+            </div>
+        </div>
+
+        <!-- File Mode -->
+        <div id="mode-file" class="panel hidden">
+            <div class="panel-header">
+                <h3>选择文件</h3>
+            </div>
+            <div class="file-drop-area" onclick="document.getElementById('file-input').click()">
+                <p>点击或拖拽文件到此处</p>
+                <div id="file-name" class="file-info"></div>
+            </div>
+            <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(this)">
+        </div>
+
+        <!-- Result -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3>处理结果 <span id="res-meta"
+                        style="font-size:12px; font-weight:normal; color:#999; margin-left:10px;"></span></h3>
+                <button class="icon-btn" onclick="copyResult()">📋 复制结果</button>
+            </div>
+            <textarea id="output-text" readonly placeholder="Base64 结果..."
+                style="background-color: #f6f8fa;"></textarea>
+        </div>
+    </div>
+
+    <div id="toast">提示信息</div>
+
+    <script>
+        const inputText = document.getElementById('input-text');
+        const outputText = document.getElementById('output-text');
+        const resMeta = document.getElementById('res-meta');
+
+        let activeTab = 'text';
+
+        function switchTab(mode) {
+            activeTab = mode;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            // Assumes hardcoded order or logic, simplifying:
+            const tabs = document.querySelectorAll('.tab-btn');
+            if (mode === 'text') tabs[0].classList.add('active');
+            else tabs[1].classList.add('active');
+
+            if (mode === 'text') {
+                document.getElementById('mode-text').classList.remove('hidden');
+                document.getElementById('mode-file').classList.add('hidden');
+            } else {
+                document.getElementById('mode-text').classList.add('hidden');
+                document.getElementById('mode-file').classList.remove('hidden');
+            }
+            outputText.value = '';
+            resMeta.textContent = '';
+        }
+
+        // --- Text Logic (UTF-8 safe) ---
+        function doTextEncode() {
+            const val = inputText.value;
+            if (!val) return;
+            try {
+                // Determine if we need to encode UTF-8
+                // btoa only accepts Latin1.
+                // Classic solution: encodeURIComponent first, then unescape.
+                const b64 = btoa(unescape(encodeURIComponent(val)));
+                outputText.value = b64;
+                showToast("编码成功");
+            } catch (e) {
+                showToast("编码错误: " + e.message);
+            }
+        }
+
+        function doTextDecode() {
+            const val = inputText.value.trim();
+            if (!val) return;
+            try {
+                // Reverse: atob -> escape -> decodeURIComponent
+                const str = decodeURIComponent(escape(window.atob(val)));
+                outputText.value = str;
+                showToast("解码成功");
+            } catch (e) {
+                showToast("解码错误: 无效的 Base64");
+            }
+        }
+
+        function clearText() {
+            inputText.value = '';
+            outputText.value = '';
+            inputText.focus();
+        }
+
+        // --- File Logic ---
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                document.getElementById('file-name').textContent = `选定文件: ${file.name} (${formatSize(file.size)})`;
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const dataUrl = e.target.result;
+                    // Format: data:image/png;base64,.....
+                    // We usually want just the base64 part for a "Base64 Tool"
+                    const b64 = dataUrl.split(',')[1];
+                    outputText.value = b64;
+                    resMeta.textContent = `(Type: ${file.type})`;
+                    showToast("文件转换成功");
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // --- Common ---
+        function copyResult() {
+            if (!outputText.value) return;
+            // Select text if very long (for visual confirmation)
+            outputText.select();
+            navigator.clipboard.writeText(outputText.value).then(() => {
+                showToast("已复制到剪贴板");
+            }).catch(() => {
+                showToast("复制失败");
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>
