@@ -1,0 +1,217 @@
+:root {
+  --bg0: #05050a;
+  --bg1: #0a0a14;
+  --neon-cyan: #00f3ff;
+  --neon-magenta: #ff00ff;
+  --text: #ffffff;
+  --muted: #666666;
+
+  --font-mono: 'Courier New', Courier, monospace;
+  /* Placeholder, system mono is fine */
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--bg0);
+  color: var(--text);
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  /* Prevent scroll */
+}
+
+/* Background Layers */
+.bg-layer-base {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  background: radial-gradient(circle at center, #1a1a2e 0%, var(--bg0) 100%);
+}
+
+.bg-layer-flow {
+  position: fixed;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  z-index: -2;
+  background: conic-gradient(from 0deg at 50% 50%,
+      rgba(0, 243, 255, 0.03) 0deg,
+      rgba(255, 0, 255, 0.03) 120deg,
+      rgba(0, 243, 255, 0.03) 240deg,
+      rgba(255, 0, 255, 0.03) 360deg);
+  animation: flowRotate 20s linear infinite;
+  pointer-events: none;
+}
+
+.bg-layer-texture {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.03;
+  /* Simple CSS noise pattern using repeating-radial-gradient */
+  background: repeating-radial-gradient(circle at 50% 50%,
+      transparent 0,
+      #fff 1px,
+      transparent 2px);
+  background-size: 4px 4px;
+  pointer-events: none;
+}
+
+@keyframes flowRotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-layer-flow {
+    animation: none;
+    background: radial-gradient(circle at center, rgba(0, 243, 255, 0.02), rgba(255, 0, 255, 0.02));
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* Utilities */
+.neon-text-cyan {
+  color: #fff;
+  text-shadow:
+    0 0 5px var(--neon-cyan),
+    0 0 10px var(--neon-cyan),
+    0 0 20px var(--neon-cyan),
+    0 0 40px var(--neon-cyan);
+}
+
+.neon-text-magenta {
+  color: #fff;
+  text-shadow:
+    0 0 5px var(--neon-magenta),
+    0 0 10px var(--neon-magenta),
+    0 0 20px var(--neon-magenta),
+    0 0 40px var(--neon-magenta);
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* BigTimeDisplay Component Styles */
+.big-time-display {
+  text-align: center;
+  padding: 20px;
+  user-select: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.big-time-display .digits {
+  font-size: 15vw;
+  font-family: var(--font-mono);
+  /* Using mono for tabular nums */
+  font-variant-numeric: tabular-nums;
+  font-weight: bold;
+  line-height: 1;
+  color: #fff;
+
+  /* Default Cyan Glow */
+  text-shadow:
+    0 0 10px var(--neon-cyan),
+    0 0 20px var(--neon-cyan),
+    0 0 40px var(--neon-cyan),
+    0 0 80px var(--neon-cyan);
+
+  transition: text-shadow 0.5s ease, color 0.5s ease;
+}
+
+/* Status Variations */
+.big-time-display.status-paused {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.big-time-display.status-paused .digits {
+  text-shadow:
+    0 0 5px var(--neon-cyan),
+    0 0 10px var(--neon-cyan);
+}
+
+.big-time-display.status-ended .digits {
+  color: #fff;
+  /* Magenta Intense Glow */
+  text-shadow:
+    0 0 15px var(--neon-magenta),
+    0 0 30px var(--neon-magenta),
+    0 0 60px var(--neon-magenta),
+    0 0 100px var(--neon-magenta);
+
+  animation: pulseEnded 1.5s infinite alternate;
+}
+
+.big-time-display.status-ended .time-up-label {
+  font-size: 3vw;
+  color: var(--neon-magenta);
+  letter-spacing: 0.5em;
+  font-weight: 800;
+  text-shadow: 0 0 10px var(--neon-magenta);
+  margin-bottom: -2vw;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes pulseEnded {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  100% {
+    transform: scale(1.02);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .big-time-display.status-ended .digits {
+    animation: none;
+  }
+}
+
+/* TimeInput Styles */
+.time-input-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-input-container input:focus {
+  border-bottom-color: var(--neon-magenta) !important;
+  text-shadow: 0 0 20px var(--neon-magenta);
+}
+
+/* Remove spinners from number input */
+.time-input-container input::-webkit-outer-spin-button,
+.time-input-container input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.time-input-container input[type=number] {
+  -moz-appearance: textfield;
+}
