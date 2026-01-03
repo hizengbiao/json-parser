@@ -61,6 +61,14 @@ export function useTimerEngine({
         }
     }, [countdownInputMs]);
 
+    // Sync timeMs with countdownInputMs when idle in countdown mode
+    useEffect(() => {
+        if (mode === 'countdown' && status === 'idle') {
+            setTimeMs(countdownInputMs);
+        }
+    }, [countdownInputMs, mode, status]);
+
+
     // startTimeRef and pausedTimeRef are removed as we use anchorTimeRef/durationAtStartRef
 
 
