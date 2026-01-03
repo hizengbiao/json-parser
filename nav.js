@@ -25,7 +25,7 @@
     const logo = document.createElement('a');
     logo.href = pathPrefix + 'index.html';
     logo.className = 'nav-logo';
-    logo.innerHTML = '🛠️ 开发者工具箱';
+    logo.innerHTML = '🛠️ 工具箱首页';
 
     // Links Container
     const linksDiv = document.createElement('div');

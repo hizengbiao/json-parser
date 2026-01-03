@@ -30,7 +30,7 @@ function App() {
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
+        height: 'calc(100vh - 80px)',
         justifyContent: 'space-between'
       }}>
         <TopBar mode={mode} onSetMode={setMode} />
