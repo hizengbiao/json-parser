@@ -1,0 +1,70 @@
+/* Shared Navigation Styles */
+body {
+    padding-top: 80px !important;
+    /* Space for fixed nav */
+}
+
+/* Override body padding for clean layout if needed, 
+   but specific pages might need adjustment. 
+   We use a fixed nav bar. 
+*/
+
+#shared-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background-color: var(--card-bg, #1e293b);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.nav-container {
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-logo {
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-decoration: none;
+    color: var(--text-primary, #f1f5f9);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+.nav-link:hover {
+    color: var(--accent, #38bdf8);
+    background: rgba(56, 189, 248, 0.1);
+}
+
+.nav-link.active {
+    color: var(--text-primary, #f1f5f9);
+    background: var(--accent, #38bdf8);
+    font-weight: 500;
+}
