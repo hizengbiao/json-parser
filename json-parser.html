@@ -155,8 +155,8 @@
         .json-row {
             display: flex;
             flex-wrap: wrap;
-            /* Allow wrapping for long values */
-            padding-left: 5px;
+            /* Allow wrapping for children */
+            padding-left: 0;
             position: relative;
         }
 
@@ -188,7 +188,8 @@
         .content-box {
             flex: 1;
             display: flex;
-            align-items: flex-start;
+            align-items: center;
+            white-space: nowrap;
         }
 
         /* Indentation guide */
@@ -633,10 +634,11 @@
             const isObj = typeof data === 'object' && data !== null;
             const row = document.createElement('div');
             row.className = 'json-row';
-            row.style.paddingLeft = (level * 10) + 5 + 'px'; // Dynamic indent via style
+            // row.style.paddingLeft removed, moved to contentBox
 
             const contentBox = document.createElement('div');
             contentBox.className = 'content-box';
+            contentBox.style.paddingLeft = (level * 10) + 5 + 'px';
 
             // 1. Collapsible Toggle
             if (isObj && Object.keys(data).length > 0) {
@@ -789,10 +791,11 @@
                 // Separate Row for Closing Bracket
                 const closeRow = document.createElement('div');
                 closeRow.className = 'json-row close-bracket-row';
-                closeRow.style.paddingLeft = (level * 10) + 21 + 'px'; // Align with start
+                // Padding removed from row
 
                 const closeContent = document.createElement('div');
                 closeContent.className = 'content-box';
+                closeContent.style.paddingLeft = (level * 10) + 21 + 'px';
                 const closeSym = document.createElement('span');
                 closeSym.className = 'punctuation';
                 closeSym.textContent = Array.isArray(data) ? ']' : '}';
