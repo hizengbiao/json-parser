@@ -181,11 +181,12 @@
             font-size: 13px;
             line-height: 1.6;
             width: 100%;
-            padding: 10px;
-            /* Add some global padding */
+            padding: 10px 10px 10px 50px;
+            /* Left padding for gutter */
             box-sizing: border-box;
             counter-reset: line;
-            /* Reset counter for line numbers */
+            position: relative;
+            /* Anchor for absolute line numbers */
         }
 
         .json-node {
@@ -198,8 +199,7 @@
             padding: 5px;
             border: 1px solid rgba(0, 0, 0, 0.08);
             background-color: transparent;
-            /* Changed from static rgba to hover-only */
-            position: relative;
+            /* position: relative; Removed to allow line-num to anchor to json-tree */
         }
 
         /* Dark mode adjustments if needed, though mostly using rgba opacity logic */
@@ -210,24 +210,24 @@
             align-items: center;
             /* Center items vertically in the header */
             padding-left: 0;
-            position: relative;
+            /* position: relative; Removed for gutter logic */
         }
 
-        /* Restore Line Numbers */
-        .json-tree .json-row::before {
+        /* Line Numbers (Gutter) */
+        .line-num {
+            position: absolute;
+            left: 5px;
+            width: 35px;
+            text-align: right;
+            color: #6e7781;
+            font-size: 12px;
+            user-select: none;
+            cursor: default;
+        }
+
+        .line-num::before {
             counter-increment: line;
             content: counter(line);
-            display: inline-block;
-            min-width: 30px;
-            text-align: right;
-            padding-right: 10px;
-            margin-right: 8px;
-            color: #6e7781;
-            /* Darker, more visible gray */
-            user-select: none;
-            font-size: 12px;
-            font-family: 'SFMono-Regular', Consolas, monospace;
-            opacity: 1;
         }
 
         .json-node:hover>.json-row {
@@ -762,6 +762,10 @@
             const row = document.createElement('div');
             row.className = 'json-row';
 
+            const lineNum = document.createElement('span');
+            lineNum.className = 'line-num';
+            row.appendChild(lineNum);
+
             // Content Box for Key/Value/Preview
             const contentBox = document.createElement('div');
             contentBox.className = 'content-box';
@@ -904,6 +908,10 @@
                 // Footer Row (Closing Bracket)
                 const closeRow = document.createElement('div');
                 closeRow.className = 'json-row close-bracket-row';
+
+                const closeLineNum = document.createElement('span');
+                closeLineNum.className = 'line-num';
+                closeRow.appendChild(closeLineNum);
 
                 const closeContent = document.createElement('div');
                 closeContent.className = 'content-box';
