@@ -453,8 +453,8 @@
             background: #2f363d;
         }
 
-        .path-tooltip::after {
-            content: " (点击复制)";
+        .path-tooltip::before {
+            content: " (点击复制) ";
             font-size: 10px;
             color: #8b949e;
             margin-left: 8px;
@@ -564,7 +564,7 @@
         <button class="btn btn-default" onclick="showEditor()" title="编辑源码">✏️ 编辑</button>
         <button class="btn btn-default" onclick="handleMinify()" title="压缩 JSON">📦 压缩</button>
         <button class="btn btn-default" onclick="fixJson()" title="修复非标准 JSON">🔧 修复</button>
-        <button class="btn btn-default" onclick="handleJavaConvert()" title="JSON 与 Java 代码互转">☕ Java 互转</button>
+        <button class="btn btn-default" onclick="handleJavaConvert()" title="JSON 与 Java 代码互转">☕ Json/Java 互转</button>
         <button class="btn btn-default" onclick="clearAll()" title="清空内容">🧹 清空</button>
         <div style="width: 15px;"></div>
         <button class="btn btn-default" onclick="undo()" title="撤销 (Ctrl+Z)">↩️ 撤销</button>
