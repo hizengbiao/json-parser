@@ -601,12 +601,17 @@
             historyIndex++;
         }
 
+        function syncToInput() {
+            if (currentObj !== null) {
+                inputArea.value = JSON.stringify(currentObj, null, 4);
+            }
+        }
+
         function undo() {
             if (historyIndex > 0) {
                 historyIndex--;
                 inputArea.value = historyStack[historyIndex];
-                // If we are in tree mode, maybe refresh tree? 
-                // Or just stay in source mode.
+                if (isTreeMode) parseAndRender();
             }
         }
 
@@ -614,6 +619,7 @@
             if (historyIndex < historyStack.length - 1) {
                 historyIndex++;
                 inputArea.value = historyStack[historyIndex];
+                if (isTreeMode) parseAndRender();
             }
         }
 
@@ -1156,6 +1162,7 @@
                 }
                 ref[path[path.length - 1]] = value;
             }
+            syncToInput();
             saveState();
             reRenderTree();
         }
@@ -1196,6 +1203,7 @@
                 Object.assign(parent, newObj);
             }
 
+            syncToInput();
             saveState();
             reRenderTree();
         }
@@ -1216,6 +1224,7 @@
                 target["新属性" + i] = "新值";
             }
 
+            syncToInput();
             saveState();
             reRenderTree();
         }
@@ -1342,6 +1351,7 @@
                     delete parent[lastKey];
                 }
             }
+            syncToInput();
             saveState();
             reRenderTree();
         }
