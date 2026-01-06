@@ -918,6 +918,19 @@
             };
             actions.appendChild(btnVal);
 
+            if (key !== null) {
+                const btnPair = document.createElement('button');
+                btnPair.className = 'tiny-btn';
+                btnPair.textContent = '复制键值对';
+                btnPair.onclick = (e) => {
+                    e.stopPropagation();
+                    const valStr = JSON.stringify(data, null, 2);
+                    const pairStr = `"${key}": ${valStr}`;
+                    copyText(pairStr);
+                };
+                actions.appendChild(btnPair);
+            }
+
             // Add Property Button (Only for Objects/Arrays)
             if (isObj) {
                 const btnAdd = document.createElement('button');
@@ -931,19 +944,6 @@
                 btnEdit.textContent = '编辑';
                 btnEdit.onclick = (e) => { e.stopPropagation(); handleEditSubtree(container, path, data); };
                 actions.appendChild(btnEdit);
-            }
-
-            if (key !== null) {
-                const btnPair = document.createElement('button');
-                btnPair.className = 'tiny-btn';
-                btnPair.textContent = '复制键值对';
-                btnPair.onclick = (e) => {
-                    e.stopPropagation();
-                    const valStr = JSON.stringify(data, null, 2);
-                    const pairStr = `"${key}": ${valStr}`;
-                    copyText(pairStr);
-                };
-                actions.appendChild(btnPair);
             }
 
             contentBox.appendChild(actions);
