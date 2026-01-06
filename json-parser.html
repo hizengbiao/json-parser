@@ -446,40 +446,30 @@
 
     <div class="main-actions">
         <!-- Global Actions -->
-        <button class="btn btn-primary" onclick="handleFormat()" title="格式化并查看结果">⚡ 格式化</button>
+        <button class="btn btn-primary" onclick="handleFormat()" title="格式化为树状视图">⚡ 格式化</button>
+        <button class="btn btn-default" onclick="showEditor()" title="编辑源码">✏️ 编辑</button>
         <button class="btn btn-default" onclick="handleMinify()" title="压缩 JSON">📦 压缩</button>
         <button class="btn btn-default" onclick="fixJson()" title="修复非标准 JSON">🔧 修复</button>
         <button class="btn btn-default" onclick="clearAll()" title="清空内容">🧹 清空</button>
         <div style="width: 15px;"></div>
         <button class="btn btn-default" onclick="undo()" title="撤销 (Ctrl+Z)">↩️ 撤销</button>
         <button class="btn btn-default" onclick="redo()" title="重做 (Ctrl+Y)">↪️ 重做</button>
+
+        <!-- Tree Actions (Dynamic visibility) -->
+        <div class="action-separator" style="width:1px; height:20px; background:#e1e4e8; margin:0 10px;"></div>
+        <div id="tree-toolbar" style="display:none; gap:5px;">
+            <button class="icon-btn" onclick="copyTreeContent()" title="复制当前JSON">📋 复制</button>
+            <button class="icon-btn" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
+            <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
+            <button class="icon-btn" onclick="sortJson(true)" title="按Key升序">⬇️ 升序</button>
+            <button class="icon-btn" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
+            <button class="icon-btn" onclick="resetOrder()" title="恢复原序">🔄 原序</button>
+        </div>
     </div>
 
     <div id="error-msg"></div>
 
     <div class="container">
-        <!-- Tab Header -->
-        <div class="tabs-header">
-            <div class="tab-btn active" id="tab-source" onclick="switchTab('source')">📝 源码模式</div>
-            <div class="tab-btn" id="tab-tree" onclick="switchTab('tree')">🌳 视图模式</div>
-
-            <div class="tab-spacer"></div>
-
-            <!-- Tree Logic Actions (Visible only in Tree Mode) -->
-            <div class="tab-actions hidden" id="tree-actions">
-                <button class="icon-btn" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
-                <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
-                <button class="icon-btn" onclick="sortJson(true)" title="按Key升序">⬇️ 升序</button>
-                <button class="icon-btn" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
-                <button class="icon-btn" onclick="resetOrder()" title="恢复原序">🔄 原序</button>
-            </div>
-
-            <!-- Source Logic Actions (Visible only in Source Mode) -->
-            <div class="tab-actions" id="source-actions">
-                <button class="icon-btn" onclick="copyInput()" title="复制内容">📋 复制</button>
-            </div>
-        </div>
-
         <!-- content -->
         <div class="editor-content">
             <!-- View 1: Source Input -->
@@ -501,15 +491,13 @@
         const outputDiv = document.getElementById('json-output');
         const errorMsg = document.getElementById('error-msg');
 
-        const tabSource = document.getElementById('tab-source');
-        const tabTree = document.getElementById('tab-tree');
         const viewSource = document.getElementById('view-source');
         const viewTree = document.getElementById('view-tree');
-        const treeActions = document.getElementById('tree-actions');
-        const sourceActions = document.getElementById('source-actions');
+        const treeToolbar = document.getElementById('tree-toolbar');
 
         let currentObj = null;
         let originalObj = null;
+        let isTreeMode = false;
 
         // Undo/Redo
         const historyStack = [];
@@ -557,36 +545,38 @@
             }
         }
 
-        // --- Tabs Logic ---
-        function switchTab(mode) {
+        // --- View Switching Logic ---
+        function switchMode(mode) {
             if (mode === 'source') {
-                tabSource.classList.add('active');
-                tabTree.classList.remove('active');
+                isTreeMode = false;
                 viewSource.classList.add('active');
                 viewTree.classList.remove('active');
-
-                sourceActions.classList.remove('hidden');
-                treeActions.classList.add('hidden');
+                treeToolbar.style.display = 'none';
             } else {
                 // To Tree
-                // Try format first if empty tree? No, users might click tab manually.
-                // If we click Tab, we try to parse current input.
-                if (parseAndRender()) {
-                    tabSource.classList.remove('active');
-                    tabTree.classList.add('active');
-                    viewSource.classList.remove('active');
-                    viewTree.classList.add('active');
-
-                    sourceActions.classList.add('hidden');
-                    treeActions.classList.remove('hidden');
-                }
+                isTreeMode = true;
+                viewSource.classList.remove('active');
+                viewTree.classList.add('active');
+                treeToolbar.style.display = 'flex';
             }
+        }
+
+        function showEditor() {
+            // Switch back to source
+            // Ideally, populate with formatted JSON if we were in tree mode?
+            // Optional: User might want to keep what they typed.
+            // But if they sorted, we should sync back.
+            if (currentObj && isTreeMode) {
+                inputArea.value = JSON.stringify(currentObj, null, 4);
+                saveState();
+            }
+            switchMode('source');
         }
 
         function handleFormat() {
             // Triggered by Format Button
             if (parseAndRender()) {
-                switchTab('tree');
+                switchMode('tree');
                 showToast("格式化成功 ✅");
             }
         }
@@ -598,7 +588,7 @@
                 const parsed = JSON.parse(raw);
                 inputArea.value = JSON.stringify(parsed);
                 saveState();
-                switchTab('source'); // Stay in source
+                switchMode('source'); // Stay in source
                 showToast("压缩成功 ✅");
                 errorMsg.style.display = 'none';
             } catch (e) {
@@ -631,7 +621,7 @@
             outputDiv.innerHTML = '';
             currentObj = null;
             originalObj = null;
-            switchTab('source');
+            switchMode('source');
             errorMsg.style.display = 'none';
         }
 
@@ -656,7 +646,7 @@
                 return true;
             } catch (e) {
                 showError(e);
-                switchTab('source'); // Switch back to show error context
+                switchMode('source'); // Switch back to show error context
                 return false;
             }
         }
@@ -667,9 +657,17 @@
         }
 
         function copyInput() {
-            // Copy whatever is in the active view?
             // "复制内容" button is in Source Actions
             copyText(inputArea.value);
+        }
+
+        function copyTreeContent() {
+            if (currentObj) {
+                copyText(JSON.stringify(currentObj, null, 4));
+            } else {
+                // Fallback if empty, though unlikely if in tree view
+                copyText(inputArea.value);
+            }
         }
 
         // Sort/Order Logic (Operates on currentObj)
