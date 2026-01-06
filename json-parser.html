@@ -1318,7 +1318,13 @@
 
             // Replace the tree node with the editor
             container.replaceWith(editorDiv);
-            textarea.focus();
+
+            // Ensure content starts at the top
+            textarea.scrollTop = 0;
+            textarea.setSelectionRange(0, 0);
+
+            // Focus without jumping the page scroll
+            textarea.focus({ preventScroll: true });
         }
 
         function handleDelete(path) {
