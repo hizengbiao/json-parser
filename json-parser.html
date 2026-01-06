@@ -363,6 +363,14 @@
             color: #0969da;
         }
 
+        .icon-btn:disabled,
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+
         /* Helpers */
         .hidden {
             display: none !important;
@@ -457,12 +465,12 @@
 
         <!-- Tree Actions (Dynamic visibility) -->
         <div class="action-separator" style="width:1px; height:20px; background:#e1e4e8; margin:0 10px;"></div>
-        <div id="tree-toolbar" style="display:none; gap:5px;">
-            <button class="icon-btn" onclick="copyTreeContent()" title="复制当前JSON">📋 复制</button>
-            <button class="icon-btn" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
-            <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
-            <button class="icon-btn" onclick="sortJson(true)" title="按Key升序">⬇️ 升序</button>
-            <button class="icon-btn" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
+        <div id="tree-toolbar" style="display:flex; gap:5px;">
+            <button class="icon-btn" onclick="copyCurrentContent()" id="btn-copy" title="复制内容">📋 复制</button>
+            <button class="icon-btn tree-only" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
+            <button class="icon-btn tree-only" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
+            <button class="icon-btn tree-only" onclick="sortJson(true)" title="按Key升序">⬇️ 升序</button>
+            <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
     </div>
 
@@ -545,17 +553,23 @@
 
         // --- View Switching Logic ---
         function switchMode(mode) {
+            const treeBtns = document.querySelectorAll('.tree-only');
+
             if (mode === 'source') {
                 isTreeMode = false;
                 viewSource.classList.add('active');
                 viewTree.classList.remove('active');
-                treeToolbar.style.display = 'none';
+
+                // Disable tree-only buttons, but keep toolbar visible for layout stability
+                treeBtns.forEach(btn => btn.disabled = true);
             } else {
                 // To Tree
                 isTreeMode = true;
                 viewSource.classList.remove('active');
                 viewTree.classList.add('active');
-                treeToolbar.style.display = 'flex';
+
+                // Enable tree-only buttons
+                treeBtns.forEach(btn => btn.disabled = false);
             }
         }
 
@@ -661,19 +675,16 @@
             errorMsg.style.display = 'block';
         }
 
-        function copyInput() {
-            // "复制内容" button is in Source Actions
-            copyText(inputArea.value);
-        }
-
-        function copyTreeContent() {
-            if (currentObj) {
+        function copyCurrentContent() {
+            // Smart copy based on mode
+            if (isTreeMode && currentObj) {
                 copyText(JSON.stringify(currentObj, null, 4));
             } else {
-                // Fallback if empty, though unlikely if in tree view
                 copyText(inputArea.value);
             }
         }
+
+
 
         // Sort/Order Logic (Operates on currentObj)
         function sortJson(asc) {
