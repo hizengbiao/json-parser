@@ -197,8 +197,8 @@
             margin: 3px 0;
             padding: 5px;
             border: 1px solid rgba(0, 0, 0, 0.08);
-            background-color: rgba(0, 0, 0, 0.03);
-            /* Progressive shading */
+            background-color: transparent;
+            /* Changed from static rgba to hover-only */
             position: relative;
         }
 
@@ -222,11 +222,12 @@
             text-align: right;
             padding-right: 10px;
             margin-right: 8px;
-            color: #bbb;
+            color: #6e7781;
+            /* Darker, more visible gray */
             user-select: none;
             font-size: 12px;
-            /* Make it separate from the card look */
-            opacity: 0.7;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            opacity: 1;
         }
 
         .json-node:hover>.json-row {
@@ -237,6 +238,8 @@
         .json-node.object-node:hover {
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
             border-color: rgba(0, 0, 0, 0.2);
+            background-color: rgba(0, 0, 0, 0.04);
+            /* Highlight on hover (and bubbles to parents) */
         }
 
         .content-box {
