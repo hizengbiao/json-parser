@@ -485,6 +485,34 @@
             outline: none;
             box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2);
         }
+
+        .subtree-editor-container {
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #0969da;
+            border-radius: 6px;
+            margin: 5px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .subtree-textarea {
+            width: 100%;
+            min-height: 200px;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 13px;
+            padding: 10px;
+            border: 1px solid #d0d7de;
+            border-radius: 4px;
+            resize: vertical;
+            outline: none;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        .subtree-textarea:focus {
+            border-color: #0969da;
+            box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2);
+        }
     </style>
 </head>
 
@@ -897,6 +925,12 @@
                 btnAdd.textContent = '新增属性';
                 btnAdd.onclick = (e) => { e.stopPropagation(); handleAddProperty(path, Array.isArray(data)); };
                 actions.appendChild(btnAdd);
+
+                const btnEdit = document.createElement('button');
+                btnEdit.className = 'tiny-btn';
+                btnEdit.textContent = '编辑';
+                btnEdit.onclick = (e) => { e.stopPropagation(); handleEditSubtree(container, path, data); };
+                actions.appendChild(btnEdit);
             }
 
             if (key !== null) {
@@ -1161,6 +1195,55 @@
 
             saveState();
             reRenderTree();
+        }
+
+        function handleEditSubtree(container, path, data) {
+            // Create editor UI
+            const editorDiv = document.createElement('div');
+            editorDiv.className = 'subtree-editor-container';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'subtree-textarea';
+            textarea.value = JSON.stringify(data, null, 4);
+
+            const btnRow = document.createElement('div');
+            btnRow.style.display = 'flex';
+            btnRow.style.gap = '8px';
+            btnRow.style.justifyContent = 'flex-end';
+
+            const btnSave = document.createElement('button');
+            btnSave.className = 'btn btn-primary';
+            btnSave.textContent = '保存';
+            btnSave.style.padding = '4px 12px';
+            btnSave.style.fontSize = '12px';
+
+            const btnCancel = document.createElement('button');
+            btnCancel.className = 'btn btn-default';
+            btnCancel.textContent = '取消';
+            btnCancel.style.padding = '4px 12px';
+            btnSave.style.fontSize = '12px';
+
+            btnSave.onclick = () => {
+                try {
+                    const newData = JSON.parse(textarea.value);
+                    setValueByPath(path, newData); // This triggers reRenderTree
+                } catch (e) {
+                    showToast("JSON 格式错误: " + e.message);
+                }
+            };
+
+            btnCancel.onclick = () => {
+                reRenderTree(); // Restore view
+            };
+
+            btnRow.appendChild(btnCancel);
+            btnRow.appendChild(btnSave);
+            editorDiv.appendChild(textarea);
+            editorDiv.appendChild(btnRow);
+
+            // Replace the tree node with the editor
+            container.replaceWith(editorDiv);
+            textarea.focus();
         }
     </script>
 </body>
