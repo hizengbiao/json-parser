@@ -434,16 +434,30 @@
             position: fixed;
             background: #24292f;
             color: #fff;
-            padding: 6px 10px;
+            padding: 6px 12px;
             border-radius: 4px;
             font-size: 12px;
-            pointer-events: none;
+            pointer-events: auto;
+            cursor: pointer;
             z-index: 2000;
             display: none;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             white-space: nowrap;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .path-tooltip:hover {
+            background: #2f363d;
+        }
+
+        .path-tooltip::after {
+            content: " (点击复制)";
+            font-size: 10px;
+            color: #8b949e;
+            margin-left: 8px;
         }
 
         .path-tooltip span {
@@ -620,12 +634,18 @@
             if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); }
         });
 
+        let tooltipTimer;
         function updateTooltipPos(e) {
             const tooltip = document.getElementById('path-tooltip');
             if (!tooltip) return;
-            tooltip.style.left = (e.clientX + 15) + 'px';
-            tooltip.style.top = (e.clientY + 15) + 'px';
+            // Slightly offset from cursor
+            tooltip.style.left = (e.clientX + 10) + 'px';
+            tooltip.style.top = (e.clientY + 10) + 'px';
         }
+
+        const tooltipEl = document.getElementById('path-tooltip');
+        tooltipEl.onmouseenter = () => clearTimeout(tooltipTimer);
+        tooltipEl.onmouseleave = () => tooltipEl.style.display = 'none';
 
         function saveState() {
             const val = inputArea.value;
@@ -879,18 +899,43 @@
                 keySpan.textContent = `"${key}"`;
 
                 keySpan.onmouseenter = (e) => {
+                    clearTimeout(tooltipTimer);
                     const tooltip = document.getElementById('path-tooltip');
                     if (path.length > 0) {
-                        const parts = path.map((p, i) => i === path.length - 1 ? `<b>${p}</b>` : p);
-                        tooltip.innerHTML = parts.join('<span>&gt;</span>');
+                        const formattedParts = [];
+                        const plainPathParts = [];
+                        let ref = currentObj;
+
+                        path.forEach((p, idx) => {
+                            const isArr = Array.isArray(ref);
+                            const segment = isArr ? `[${p}]` : p;
+                            plainPathParts.push(segment);
+
+                            if (idx === path.length - 1) {
+                                formattedParts.push(`<b>${segment}</b>`);
+                            } else {
+                                formattedParts.push(segment);
+                            }
+                            ref = ref[p];
+                        });
+
+                        tooltip.innerHTML = formattedParts.join('<span>&gt;</span>');
                         tooltip.style.display = 'block';
+
+                        tooltip.onclick = (event) => {
+                            event.stopPropagation();
+                            copyText(plainPathParts.join(' > '));
+                            tooltip.style.display = 'none';
+                        };
+
                         updateTooltipPos(e);
                     }
                 };
                 keySpan.onmousemove = updateTooltipPos;
                 keySpan.onmouseleave = () => {
-                    const tooltip = document.getElementById('path-tooltip');
-                    tooltip.style.display = 'none';
+                    tooltipTimer = setTimeout(() => {
+                        document.getElementById('path-tooltip').style.display = 'none';
+                    }, 200);
                 };
 
                 // Single click to edit key
