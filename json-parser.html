@@ -463,7 +463,6 @@
             <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
             <button class="icon-btn" onclick="sortJson(true)" title="按Key升序">⬇️ 升序</button>
             <button class="icon-btn" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
-            <button class="icon-btn" onclick="resetOrder()" title="恢复原序">🔄 原序</button>
         </div>
     </div>
 
@@ -496,7 +495,6 @@
         const treeToolbar = document.getElementById('tree-toolbar');
 
         let currentObj = null;
-        let originalObj = null;
         let isTreeMode = false;
 
         // Undo/Redo
@@ -582,13 +580,22 @@
         }
 
         function handleMinify() {
+            // Prioritize currentObj if we are in Tree Mode (to capture sorting)
+            if (isTreeMode && currentObj) {
+                inputArea.value = JSON.stringify(currentObj);
+                saveState();
+                switchMode('source');
+                showToast("压缩成功 (已保留排序) ✅");
+                return;
+            }
+
             const raw = inputArea.value.trim();
             if (!raw) return;
             try {
                 const parsed = JSON.parse(raw);
                 inputArea.value = JSON.stringify(parsed);
                 saveState();
-                switchMode('source'); // Stay in source
+                switchMode('source');
                 showToast("压缩成功 ✅");
                 errorMsg.style.display = 'none';
             } catch (e) {
@@ -620,7 +627,6 @@
             inputArea.value = '';
             outputDiv.innerHTML = '';
             currentObj = null;
-            originalObj = null;
             switchMode('source');
             errorMsg.style.display = 'none';
         }
@@ -637,7 +643,6 @@
             try {
                 const parsed = JSON.parse(raw);
                 currentObj = parsed;
-                originalObj = parsed;
                 outputDiv.innerHTML = '';
                 errorMsg.style.display = 'none';
 
@@ -676,13 +681,6 @@
             currentObj = sortObject(currentObj, asc);
             reRenderTree();
             showToast(asc ? "已按在升序排列" : "已按降序排列");
-        }
-
-        function resetOrder() {
-            if (!originalObj) return;
-            currentObj = originalObj;
-            reRenderTree();
-            showToast("已恢复原始顺序");
         }
 
         function reRenderTree() {
