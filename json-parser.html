@@ -887,6 +887,15 @@
             btnVal.onclick = (e) => { e.stopPropagation(); copyText(JSON.stringify(data, null, 2)); };
             actions.appendChild(btnVal);
 
+            // Add Property Button (Only for Objects/Arrays)
+            if (isObj) {
+                const btnAdd = document.createElement('button');
+                btnAdd.className = 'tiny-btn';
+                btnAdd.textContent = '新增属性';
+                btnAdd.onclick = (e) => { e.stopPropagation(); handleAddProperty(path, Array.isArray(data)); };
+                actions.appendChild(btnAdd);
+            }
+
             if (key !== null) {
                 const btnPair = document.createElement('button');
                 btnPair.className = 'tiny-btn';
@@ -1125,6 +1134,26 @@
                 // This keeps the reference intact
                 keys.forEach(k => delete parent[k]);
                 Object.assign(parent, newObj);
+            }
+
+            saveState();
+            reRenderTree();
+        }
+
+        function handleAddProperty(path, isArray) {
+            let target = currentObj;
+            for (let i = 0; i < path.length; i++) {
+                target = target[path[i]];
+            }
+
+            if (isArray) {
+                target.push("新值");
+            } else {
+                let i = 1;
+                while (target.hasOwnProperty("新属性" + i)) {
+                    i++;
+                }
+                target["新属性" + i] = "新值";
             }
 
             saveState();
