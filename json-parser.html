@@ -75,10 +75,12 @@
             gap: 20px;
             height: calc(100% - 80px);
             min-height: 400px;
+            overflow: hidden;
+            /* Prevent scroll during resize */
         }
 
         .panel {
-            flex: 1;
+            /* flex: 1;  Removed static flex */
             display: flex;
             flex-direction: column;
             background: var(--panel-bg);
@@ -86,6 +88,52 @@
             border-radius: 6px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            min-width: 0;
+            /* Allow shrinking below content size */
+        }
+
+        /* Default split */
+        #panel-input {
+            width: 40%;
+        }
+
+        #panel-output {
+            flex: 1;
+        }
+
+        .gutter {
+            width: 8px;
+            background: #f4f6f8;
+            border-left: 1px solid #d0d7de;
+            border-right: 1px solid #d0d7de;
+            cursor: col-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.1s;
+        }
+
+        .gutter:hover,
+        .gutter.dragging {
+            background: #dbeeff;
+            border-color: #0969da;
+        }
+
+        .gutter::after {
+            content: "⋮";
+            color: #8c959f;
+            font-weight: bold;
+            margin-top: -5px;
+        }
+
+        .panel.collapsed {
+            display: none !important;
+        }
+
+        .panel.fullscreen {
+            width: 100% !important;
+            flex: 1 !important;
         }
 
         .panel-header {
@@ -420,21 +468,25 @@
 
     <div id="error-msg"></div>
 
-    <div class="container">
-        <div class="panel">
+    <div class="container" id="main-container">
+        <div class="panel" id="panel-input">
             <div class="panel-header">
                 <h3>输入 JSON</h3>
                 <div>
+                    <button class="icon-btn" onclick="togglePanel('panel-input')" title="折叠/展开此面板">◀ 折叠</button>
                     <button class="icon-btn" onclick="copyInput()" title="复制原始内容">📋 复制</button>
                 </div>
             </div>
             <textarea id="json-input" placeholder="请在此粘贴 JSON..."></textarea>
         </div>
 
-        <div class="panel">
+        <div class="gutter" id="gutter"></div>
+
+        <div class="panel" id="panel-output">
             <div class="panel-header">
                 <h3>格式化结果</h3>
                 <div>
+                    <button class="icon-btn" onclick="togglePanel('panel-output')" title="折叠/展开此面板">▶ 折叠</button>
                     <button class="icon-btn" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
                     <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
                     <button class="icon-btn" onclick="sortJson(true)" title="按Key升序排列">⬇️ 升序</button>
@@ -905,6 +957,126 @@
             t.className = "show";
             setTimeout(() => t.className = t.className.replace("show", ""), 2000);
         }
+
+        // --- Resizer Logic ---
+        const gutter = document.getElementById('gutter');
+        const container = document.getElementById('main-container');
+        const leftPanel = document.getElementById('panel-input');
+        const rightPanel = document.getElementById('panel-output');
+        let isResizing = false;
+
+        gutter.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            gutter.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none'; // Prevent selection
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const containerRect = container.getBoundingClientRect();
+            // Calculate percentage
+            let newLeftWidth = e.clientX - containerRect.left;
+
+            // Constrain (min 150px)
+            if (newLeftWidth < 150) newLeftWidth = 150;
+            if (newLeftWidth > containerRect.width - 150) newLeftWidth = containerRect.width - 150;
+
+            const percent = (newLeftWidth / containerRect.width) * 100;
+            leftPanel.style.width = percent + '%';
+            leftPanel.style.flex = 'none'; // Disable flex grow
+            // Right panel automatically takes remaining space due to flex:1 default (if simple)
+            // But we need to ensure right panel behaves. 
+            // Actually simpler: Set left width, Right is flex:1. 
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                gutter.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+
+        // Toggle Visibility
+        function togglePanel(targetId) {
+            const target = document.getElementById(targetId);
+            const otherId = targetId === 'panel-input' ? 'panel-output' : 'panel-input';
+            const other = document.getElementById(otherId);
+            const gutterEl = document.getElementById('gutter');
+
+            // If we are collapsing the only visible panel, don't allow (optional, but good UX)
+            if (other.classList.contains('collapsed')) {
+                // Determine if we are re-opening? No, button is inside the panel. 
+                // Wait, if I collapse "Input", the button is gone? 
+                // YES. So we need a way to restore it. 
+                // Typically you add a "Restore" button somewhere else, or keep the header visible.
+
+                // Better UX for "Simple Tool":
+                // Toggle Button changes "This Panel" to Hidden?
+                // IF hid, how to get back?
+                // Creating a floating "Expand" button or similar is complex.
+
+                // Modification: The button shouldn't be "Collapse Self". 
+                // It should be "Maximize Self" (Hide Others) or "Toggle Mode".
+
+                // Let's implement "Maximize/Restore" logic instead, usually clearer.
+                // Or "Layout" dropdown.
+
+                // Simplest: "Collapse" button hides the *Content*, leaving Header? 
+                // User asked: "Input and Output sub-windows can be collapsed"
+
+                // Let's try: Click "Collapse" -> The panel becomes very thin (just header button?) or hidden entirely
+                // If Hidden entirely, we need a global toolbar button to "Reset Layout".
+            }
+
+            // Re-thinking: Maximize/Restore is safer.
+            // If I click "Maximize" on Output, Input hides. Output becomes 100%. Gutter hides.
+            // Button changes to "Restore".
+
+            const isMaximized = target.classList.contains('fullscreen');
+
+            if (isMaximized) {
+                // Restore
+                target.classList.remove('fullscreen');
+                other.classList.remove('collapsed');
+                gutterEl.style.display = 'flex';
+                // Reset text
+                updateToggleButtons(false);
+            } else {
+                // Maximize Target
+                target.classList.add('fullscreen');
+                other.classList.add('collapsed');
+                gutterEl.style.display = 'none';
+                updateToggleButtons(true, targetId);
+            }
+        }
+
+        function updateToggleButtons(isMaximized, maximizeTargetId) {
+            // Update button text to "Restore" or "Maximize"
+            const btnIn = document.querySelector('#panel-input button[onclick*="togglePanel"]');
+            const btnOut = document.querySelector('#panel-output button[onclick*="togglePanel"]');
+
+            if (!isMaximized) {
+                btnIn.textContent = "◀ 最大化";
+                btnOut.textContent = "▶ 最大化";
+                btnIn.title = "隐藏右侧面板";
+                btnOut.title = "隐藏左侧面板";
+            } else {
+                if (maximizeTargetId === 'panel-input') {
+                    btnIn.textContent = "👐 还原";
+                    btnIn.title = "恢复分栏显示";
+                } else {
+                    btnOut.textContent = "👐 还原";
+                    btnOut.title = "恢复分栏显示";
+                }
+            }
+        }
+
+        // Init buttons text
+        updateToggleButtons(false);
     </script>
 </body>
 
