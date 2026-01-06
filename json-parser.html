@@ -41,6 +41,7 @@
             justify-content: center;
             gap: 15px;
             margin-bottom: 15px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -72,102 +73,95 @@
         .container {
             display: flex;
             flex: 1;
-            gap: 20px;
-            height: calc(100% - 80px);
-            min-height: 400px;
-            overflow: hidden;
-            /* Prevent scroll during resize */
-        }
-
-        .panel {
-            /* flex: 1;  Removed static flex */
-            display: flex;
             flex-direction: column;
             background: var(--panel-bg);
             border: 1px solid var(--border-color);
             border-radius: 6px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            min-width: 0;
-            /* Allow shrinking below content size */
+            height: calc(100% - 80px);
+            /* Adjust based on toolbar height */
         }
 
-        /* Default split */
-        #panel-input {
-            width: 40%;
+        /* Tabs */
+        .tabs-header {
+            display: flex;
+            background: #f6f8fa;
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+            padding: 0 10px;
+            height: 48px;
         }
 
-        #panel-output {
+        .tab-btn {
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            color: #57606a;
+            border-bottom: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
+
+        .tab-btn:hover {
+            color: #24292f;
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .tab-btn.active {
+            color: #0969da;
+            border-bottom-color: #0969da;
+            background: #fff;
+            /* Tab look */
+            border-radius: 6px 6px 0 0;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            margin-bottom: -1px;
+            /* Overlap border */
+            position: relative;
+            z-index: 1;
+        }
+
+        .tab-spacer {
             flex: 1;
         }
 
-        .gutter {
-            width: 8px;
-            background: #f4f6f8;
-            border-left: 1px solid #d0d7de;
-            border-right: 1px solid #d0d7de;
-            cursor: col-resize;
+        .tab-actions {
             display: flex;
+            gap: 8px;
             align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            transition: background 0.1s;
         }
 
-        .gutter:hover,
-        .gutter.dragging {
-            background: #dbeeff;
-            border-color: #0969da;
-        }
-
-        .gutter::after {
-            content: "⋮";
-            color: #8c959f;
-            font-weight: bold;
-            margin-top: -5px;
-        }
-
-        .panel.collapsed {
-            display: none !important;
-        }
-
-        .panel.fullscreen {
-            width: 100% !important;
-            flex: 1 !important;
-        }
-
-        .panel-header {
+        /* Editor container */
+        .editor-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 15px;
-            background-color: #f6f8fa;
-            border-bottom: 1px solid var(--border-color);
+            flex-direction: column;
         }
 
-        .panel-header h3 {
-            margin: 0;
-            font-size: 14px;
-            color: #57606a;
+        /* Views */
+        .view-panel {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            display: none;
+            /* Hidden by default */
+            flex-direction: column;
+            overflow: auto;
         }
 
-        .icon-btn {
-            border: none;
-            background: none;
-            cursor: pointer;
-            color: #57606a;
-            font-size: 16px;
-            padding: 2px 6px;
-            border-radius: 4px;
+        .view-panel.active {
+            display: flex;
         }
 
-        .icon-btn:hover {
-            background-color: #eaeef2;
-            color: #0969da;
-        }
-
-        /* Editors */
-        textarea {
+        /* Source Code Editor */
+        textarea#json-input,
+        textarea#minified-output {
             flex: 1;
             width: 100%;
             border: none;
@@ -177,33 +171,27 @@
             resize: none;
             outline: none;
             box-sizing: border-box;
+            line-height: 1.5;
         }
 
-        /* JSON Output Viewer */
-        .output-wrapper {
-            flex: 1;
-            overflow: auto;
-            position: relative;
-            background: #fff;
-            display: flex;
-            /* For Line Numbers + Code */
-        }
-
+        /* Tree Viewer Styles */
         .json-tree {
             font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
             font-size: 13px;
             line-height: 1.6;
             width: 100%;
             counter-reset: line;
-            /* Initialize line counter */
             padding-bottom: 20px;
         }
 
-        /* Line / Row Styles */
+        .json-node {
+            /* Container for a key-value or object */
+        }
+
         .json-row {
             display: flex;
             flex-wrap: nowrap;
-            /* Prevent wrapping */
+            /* Prevent wrapping so line numbers stay left */
             padding-left: 0;
             position: relative;
         }
@@ -212,7 +200,6 @@
             background-color: var(--hover-row);
         }
 
-        /* Line Numbers */
         .json-row::before {
             counter-increment: line;
             content: counter(line);
@@ -227,49 +214,85 @@
             user-select: none;
             font-size: 12px;
             background-color: var(--gutter-bg);
-            /* Make it stick to the left if scrolling horizontally */
+            /* Sticky line number */
             position: sticky;
             left: 0;
             z-index: 2;
+            flex-shrink: 0;
         }
 
         .content-box {
             flex: 1;
             display: block;
-            /* Was flex, changed to block for text flow */
+            /* Wrapping */
             white-space: normal;
-            /* Allow wrapping */
             word-break: break-all;
-            /* Force wrapping for long strings */
             line-height: 1.5;
             min-width: 0;
-            /* Fix flex child shrinking */
         }
 
-        /* Indentation guide */
         .json-children {
             width: 100%;
-            /* No left margin here, we use padding on rows recursively or just DOM nesting */
         }
 
-        /* Recursive Indentation via padding */
-        .indent-1 {
-            padding-left: 10px;
+        /* Collapsing */
+        .json-node.collapsed .json-children {
+            display: none;
         }
 
-        .indent-2 {
-            padding-left: 20px;
+        .json-node.collapsed .close-bracket-row {
+            display: none;
         }
 
-        .indent-3 {
-            padding-left: 30px;
+        .json-node.collapsed .preview-text {
+            display: inline-block;
         }
 
-        /* JS will calculate padding style dynamically for deeper levels */
+        .json-node.collapsed .collapsible-icon::after {
+            content: "+";
+        }
+
+        .collapsible-icon {
+            cursor: pointer;
+            user-select: none;
+            display: inline-block;
+            width: 14px;
+            text-align: center;
+            color: #57606a;
+            margin-right: 2px;
+            font-weight: bold;
+        }
+
+        .collapsible-icon::after {
+            content: "-";
+        }
+
+        .collapsible-icon:hover {
+            color: #0969da;
+        }
+
+        .preview-text {
+            display: none;
+            color: var(--preview-color);
+            font-style: italic;
+            cursor: pointer;
+            user-select: none;
+            margin: 0 5px;
+            font-size: 12px;
+            background: #f0f2f4;
+            padding: 0 6px;
+            border-radius: 4px;
+        }
+
+        .preview-text:hover {
+            background: #e6e8eb;
+            color: #333;
+        }
 
         /* Syntax Highlighting */
         .key {
             color: var(--key-color);
+            cursor: pointer;
         }
 
         .string {
@@ -293,71 +316,14 @@
             color: #57606a;
         }
 
-        /* Collapsible Logic */
-        .collapsible-icon {
-            cursor: pointer;
-            user-select: none;
-            display: inline-block;
-            width: 14px;
-            text-align: center;
-            color: #57606a;
-            margin-right: 2px;
-            font-weight: bold;
-        }
-
-        .collapsible-icon:hover {
-            color: #0969da;
-        }
-
-        .collapsible-icon::after {
-            content: "-";
-        }
-
-        .json-node.collapsed .collapsible-icon::after {
-            content: "+";
-        }
-
-        /* Updated for .json-node structure */
-        .json-node.collapsed .json-children {
-            display: none;
-        }
-
-        .json-node.collapsed .close-bracket-row {
-            display: none;
-        }
-
-        /* Hide the separate closing bracket row */
-
-        /* Enhanced Preview (Object(4)) */
-        .preview-text {
-            display: none;
-            color: var(--preview-color);
-            font-style: italic;
-            cursor: pointer;
-            user-select: none;
-            margin: 0 5px;
-            font-size: 12px;
-            background: #f0f2f4;
-            padding: 0 6px;
-            border-radius: 4px;
-        }
-
-        .preview-text:hover {
-            background: #e6e8eb;
-            color: #333;
-        }
-
-        .json-node.collapsed .preview-text {
-            display: inline-block;
-        }
-
-        /* Action Buttons (Copy) */
+        /* Action Buttons */
         .action-group {
             opacity: 0;
             display: inline-flex;
             gap: 4px;
             margin-left: 10px;
             transition: opacity 0.1s;
+            vertical-align: middle;
         }
 
         .json-row:hover .action-group {
@@ -379,7 +345,34 @@
             color: #0969da;
         }
 
-        /* Toast */
+        .icon-btn {
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #57606a;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .icon-btn:hover {
+            background-color: #eaeef2;
+            color: #0969da;
+        }
+
+        /* Helpers */
+        .hidden {
+            display: none !important;
+        }
+
+        #toast,
+        #error-msg {
+            /* Standard styles */
+        }
+
         #toast {
             visibility: hidden;
             min-width: 250px;
@@ -405,17 +398,13 @@
             bottom: 50px;
         }
 
-        .hidden {
-            display: none !important;
-        }
-
         #error-msg {
             color: #cf222e;
             background: #ffebe9;
             padding: 10px;
             border: 1px solid #ff818266;
             border-radius: 6px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             display: none;
         }
 
@@ -455,12 +444,12 @@
 
 <body>
 
-
     <div class="main-actions">
-        <button class="btn btn-primary" onclick="formatJson()">格式化</button>
-        <button class="btn btn-default" onclick="minifyJson()">压缩</button>
-        <button class="btn btn-default" onclick="fixJson()">修复 JSON</button>
-        <button class="btn btn-default" onclick="clearAll()">清空重置</button>
+        <!-- Global Actions -->
+        <button class="btn btn-primary" onclick="handleFormat()" title="格式化并查看结果">⚡ 格式化</button>
+        <button class="btn btn-default" onclick="handleMinify()" title="压缩 JSON">📦 压缩</button>
+        <button class="btn btn-default" onclick="fixJson()" title="修复非标准 JSON">🔧 修复</button>
+        <button class="btn btn-default" onclick="clearAll()" title="清空内容">🧹 清空</button>
         <div style="width: 15px;"></div>
         <button class="btn btn-default" onclick="undo()" title="撤销 (Ctrl+Z)">↩️ 撤销</button>
         <button class="btn btn-default" onclick="redo()" title="重做 (Ctrl+Y)">↪️ 重做</button>
@@ -468,36 +457,39 @@
 
     <div id="error-msg"></div>
 
-    <div class="container" id="main-container">
-        <div class="panel" id="panel-input">
-            <div class="panel-header">
-                <h3>输入 JSON</h3>
-                <div>
-                    <button class="icon-btn" onclick="togglePanel('panel-input')" title="最大化此窗口">🗖 最大化窗口</button>
-                    <button class="icon-btn" onclick="copyInput()" title="复制原始内容">📋 复制</button>
-                </div>
+    <div class="container">
+        <!-- Tab Header -->
+        <div class="tabs-header">
+            <div class="tab-btn active" id="tab-source" onclick="switchTab('source')">📝 源码模式</div>
+            <div class="tab-btn" id="tab-tree" onclick="switchTab('tree')">🌳 视图模式</div>
+
+            <div class="tab-spacer"></div>
+
+            <!-- Tree Logic Actions (Visible only in Tree Mode) -->
+            <div class="tab-actions hidden" id="tree-actions">
+                <button class="icon-btn" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
+                <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
+                <button class="icon-btn" onclick="sortJson(true)" title="按Key升序">⬇️ 升序</button>
+                <button class="icon-btn" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
+                <button class="icon-btn" onclick="resetOrder()" title="恢复原序">🔄 原序</button>
             </div>
-            <textarea id="json-input" placeholder="请在此粘贴 JSON..."></textarea>
+
+            <!-- Source Logic Actions (Visible only in Source Mode) -->
+            <div class="tab-actions" id="source-actions">
+                <button class="icon-btn" onclick="copyInput()" title="复制内容">📋 复制</button>
+            </div>
         </div>
 
-        <div class="gutter" id="gutter"></div>
-
-        <div class="panel" id="panel-output">
-            <div class="panel-header">
-                <h3>格式化结果</h3>
-                <div>
-                    <button class="icon-btn" onclick="togglePanel('panel-output')" title="最大化此窗口">🗖 最大化窗口</button>
-                    <button class="icon-btn" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
-                    <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
-                    <button class="icon-btn" onclick="sortJson(true)" title="按Key升序排列">⬇️ 升序</button>
-                    <button class="icon-btn" onclick="sortJson(false)" title="按Key降序排列">⬆️ 降序</button>
-                    <button class="icon-btn" onclick="resetOrder()" title="恢复原始顺序">🔄 原序</button>
-                    <button class="icon-btn" onclick="copyResult()" title="复制结果文本">📋 复制</button>
-                </div>
+        <!-- content -->
+        <div class="editor-content">
+            <!-- View 1: Source Input -->
+            <div id="view-source" class="view-panel active">
+                <textarea id="json-input" placeholder="请在此粘贴 JSON..."></textarea>
             </div>
-            <div class="output-wrapper">
+
+            <!-- View 2: Tree Output -->
+            <div id="view-tree" class="view-panel">
                 <div id="json-output" class="json-tree"></div>
-                <textarea id="minified-output" class="hidden" style="padding:15px;"></textarea>
             </div>
         </div>
     </div>
@@ -507,19 +499,23 @@
     <script>
         const inputArea = document.getElementById('json-input');
         const outputDiv = document.getElementById('json-output');
-        const minifiedArea = document.getElementById('minified-output');
         const errorMsg = document.getElementById('error-msg');
 
-        let currentObj = null; // Store parsed object
-        let originalObj = null; // Store original parsed object
-        let isMinified = false;
+        const tabSource = document.getElementById('tab-source');
+        const tabTree = document.getElementById('tab-tree');
+        const viewSource = document.getElementById('view-source');
+        const viewTree = document.getElementById('view-tree');
+        const treeActions = document.getElementById('tree-actions');
+        const sourceActions = document.getElementById('source-actions');
 
-        // Undo/Redo State
+        let currentObj = null;
+        let originalObj = null;
+
+        // Undo/Redo
         const historyStack = [];
         let historyIndex = -1;
         let isInputting = false;
 
-        // Init history
         saveState();
 
         inputArea.addEventListener('input', () => {
@@ -528,31 +524,19 @@
                 setTimeout(() => {
                     saveState();
                     isInputting = false;
-                }, 500); // Debounce
+                }, 500);
             }
         });
 
-        // Key bindings
         document.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-                e.preventDefault();
-                undo();
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-                e.preventDefault();
-                redo();
-            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); }
         });
 
         function saveState() {
             const val = inputArea.value;
-            // Don't save duplications at the top
             if (historyIndex >= 0 && historyStack[historyIndex] === val) return;
-
-            // Slice forward history if we are in middle
-            if (historyIndex < historyStack.length - 1) {
-                historyStack.splice(historyIndex + 1);
-            }
+            if (historyIndex < historyStack.length - 1) historyStack.splice(historyIndex + 1);
             historyStack.push(val);
             historyIndex++;
         }
@@ -561,6 +545,8 @@
             if (historyIndex > 0) {
                 historyIndex--;
                 inputArea.value = historyStack[historyIndex];
+                // If we are in tree mode, maybe refresh tree? 
+                // Or just stay in source mode.
             }
         }
 
@@ -571,162 +557,188 @@
             }
         }
 
+        // --- Tabs Logic ---
+        function switchTab(mode) {
+            if (mode === 'source') {
+                tabSource.classList.add('active');
+                tabTree.classList.remove('active');
+                viewSource.classList.add('active');
+                viewTree.classList.remove('active');
+
+                sourceActions.classList.remove('hidden');
+                treeActions.classList.add('hidden');
+            } else {
+                // To Tree
+                // Try format first if empty tree? No, users might click tab manually.
+                // If we click Tab, we try to parse current input.
+                if (parseAndRender()) {
+                    tabSource.classList.remove('active');
+                    tabTree.classList.add('active');
+                    viewSource.classList.remove('active');
+                    viewTree.classList.add('active');
+
+                    sourceActions.classList.add('hidden');
+                    treeActions.classList.remove('hidden');
+                }
+            }
+        }
+
+        function handleFormat() {
+            // Triggered by Format Button
+            if (parseAndRender()) {
+                switchTab('tree');
+                showToast("格式化成功 ✅");
+            }
+        }
+
+        function handleMinify() {
+            const raw = inputArea.value.trim();
+            if (!raw) return;
+            try {
+                const parsed = JSON.parse(raw);
+                inputArea.value = JSON.stringify(parsed);
+                saveState();
+                switchTab('source'); // Stay in source
+                showToast("压缩成功 ✅");
+                errorMsg.style.display = 'none';
+            } catch (e) {
+                showError(e);
+            }
+        }
+
         function fixJson() {
             let raw = inputArea.value.trim();
             if (!raw) return;
-
             try {
-                // 1. Remove comments
                 raw = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
-
-                // 2. Remove JSONP (callback({ ... }))
-                // Match pattern: start with word+alphanum, then (, then object/array, then ) at end
                 const jsonpMatch = raw.match(/^\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(([\s\S]*)\)\s*;?\s*$/);
-                if (jsonpMatch && jsonpMatch[1]) {
-                    raw = jsonpMatch[1];
-                }
+                if (jsonpMatch && jsonpMatch[1]) raw = jsonpMatch[1];
 
-                // 3. Convert JS Object to JSON (quotes, etc)
-                // New Function is dangerous if input is malicious, but standard for client-side tool
-                // This handles { a: 1, 'b': 2 } -> { "a": 1, "b": 2 }
                 const fn = new Function("return " + raw);
                 const obj = fn();
-
                 inputArea.value = JSON.stringify(obj, null, 4);
-                formatJson(); // Auto format after fix
-                saveState(); // Save fixed state
-                showToast("修复并格式化成功 ✅");
 
+                saveState();
+                handleFormat(); // Go to tree view
+                showToast("修复并格式化成功 ✅");
             } catch (e) {
-                showError({ message: "修复失败: " + e.message + " (请检查是否为有效JS对象)" });
+                showError({ message: "修复失败: " + e.message });
             }
         }
 
-        function formatJson() {
+        function clearAll() {
+            inputArea.value = '';
+            outputDiv.innerHTML = '';
+            currentObj = null;
+            originalObj = null;
+            switchTab('source');
+            errorMsg.style.display = 'none';
+        }
+
+        function parseAndRender() {
             const raw = inputArea.value.trim();
-            if (!raw) return;
+            if (!raw) {
+                // If empty, just switch but show nothing? Or stay?
+                // showToast("请输入 JSON");
+                // Allow switch but it's empty
+                outputDiv.innerHTML = '';
+                return true;
+            }
             try {
                 const parsed = JSON.parse(raw);
                 currentObj = parsed;
-                originalObj = parsed; // Store original
-                errorMsg.style.display = 'none';
-                isMinified = false;
-
-                outputDiv.style.display = 'block';
-                minifiedArea.classList.add('hidden');
-
+                originalObj = parsed;
                 outputDiv.innerHTML = '';
-                // Level 0 start
+                errorMsg.style.display = 'none';
+
                 const tree = buildTree(parsed, 0, null, true);
                 outputDiv.appendChild(tree);
+                return true;
             } catch (e) {
                 showError(e);
+                switchTab('source'); // Switch back to show error context
+                return false;
             }
         }
 
-        function minifyJson() {
-            const raw = inputArea.value.trim();
-            if (!raw) return;
-            try {
-                const parsed = JSON.parse(raw);
-                currentObj = parsed;
-                errorMsg.style.display = 'none';
-                isMinified = true;
-
-                outputDiv.style.display = 'none';
-                minifiedArea.classList.remove('hidden');
-                minifiedArea.value = JSON.stringify(parsed);
-            } catch (e) {
-                showError(e);
-            }
+        function showError(e) {
+            errorMsg.textContent = "JSON 错误: " + e.message;
+            errorMsg.style.display = 'block';
         }
 
+        function copyInput() {
+            // Copy whatever is in the active view?
+            // "复制内容" button is in Source Actions
+            copyText(inputArea.value);
+        }
+
+        // Sort/Order Logic (Operates on currentObj)
         function sortJson(asc) {
             if (!currentObj) return;
             currentObj = sortObject(currentObj, asc);
-
-            // Re-render
-            outputDiv.innerHTML = '';
-            minifiedArea.classList.add('hidden');
-            outputDiv.style.display = 'block';
-
-            const tree = buildTree(currentObj, 0, null, true);
-            outputDiv.appendChild(tree);
-            showToast(asc ? "已按键名升序排列" : "已按键名降序排列");
-        }
-
-        function sortObject(obj, asc) {
-            if (Array.isArray(obj)) {
-                return obj.map(item => sortObject(item, asc));
-            } else if (obj !== null && typeof obj === 'object') {
-                const keys = Object.keys(obj).sort();
-                if (!asc) keys.reverse();
-
-                const newObj = {};
-                keys.forEach(key => {
-                    newObj[key] = sortObject(obj[key], asc);
-                });
-                return newObj;
-            }
-            return obj;
+            reRenderTree();
+            showToast(asc ? "已按在升序排列" : "已按降序排列");
         }
 
         function resetOrder() {
             if (!originalObj) return;
             currentObj = originalObj;
-
-            outputDiv.innerHTML = '';
-            minifiedArea.classList.add('hidden');
-            outputDiv.style.display = 'block';
-
-            const tree = buildTree(currentObj, 0, null, true);
-            outputDiv.appendChild(tree);
+            reRenderTree();
             showToast("已恢复原始顺序");
         }
 
-        // --- Core Tree Builder ---
+        function reRenderTree() {
+            outputDiv.innerHTML = '';
+            const tree = buildTree(currentObj, 0, null, true);
+            outputDiv.appendChild(tree);
+        }
 
-        // Returns a DocumentFragment or Div containing rows
+        function sortObject(obj, asc) {
+            if (Array.isArray(obj)) return obj.map(item => sortObject(item, asc));
+            else if (obj !== null && typeof obj === 'object') {
+                const keys = Object.keys(obj).sort();
+                if (!asc) keys.reverse();
+                const newObj = {};
+                keys.forEach(key => newObj[key] = sortObject(obj[key], asc));
+                return newObj;
+            }
+            return obj;
+        }
+
+        // --- Tree Builder (Preserving previous improvements) ---
         function buildTree(data, level, key, isLast) {
             const container = document.createElement('div');
-            container.className = 'json-node expanded'; // Default expanded
+            container.className = 'json-node expanded';
 
             const isObj = typeof data === 'object' && data !== null;
             const row = document.createElement('div');
             row.className = 'json-row';
-            // Flex wrap nowrap is set in CSS
 
             // Indent content box
             const contentBox = document.createElement('div');
             contentBox.className = 'content-box';
             contentBox.style.paddingLeft = (level * 10) + 5 + 'px';
 
-            // 1. Collapsible Toggle
             if (isObj && Object.keys(data).length > 0) {
-                // row.classList.add('expanded'); // Moved to container
                 const toggle = document.createElement('span');
                 toggle.className = 'collapsible-icon';
-                toggle.onclick = (e) => {
-                    e.stopPropagation();
-                    toggleNode(container);
-                };
+                toggle.onclick = (e) => { e.stopPropagation(); toggleNode(container); };
                 contentBox.appendChild(toggle);
             } else {
-                // Spacer for alignment
                 const spacer = document.createElement('span');
                 spacer.style.width = '16px';
                 spacer.style.display = 'inline-block';
                 contentBox.appendChild(spacer);
             }
 
-            // 2. Key (if exists)
             if (key !== null) {
                 const keySpan = document.createElement('span');
                 keySpan.className = 'key';
                 keySpan.textContent = `"${key}"`;
                 if (isObj) {
                     keySpan.style.cursor = 'pointer';
-                    open.ondblclick = (e) => {
+                    // Double click key to toggle
+                    keySpan.ondblclick = (e) => {
                         e.stopPropagation();
                         toggleNode(container);
                     };
@@ -739,61 +751,46 @@
                 contentBox.appendChild(colon);
             }
 
-            // 3. Value or Start Bracket
             if (isObj) {
                 const isArr = Array.isArray(data);
                 const keys = Object.keys(data);
                 const count = keys.length;
                 const typeLabel = isArr ? 'Array' : 'Object';
 
-                // Open Bracket
                 const open = document.createElement('span');
                 open.className = 'punctuation';
                 open.textContent = isArr ? '[' : '{';
                 open.style.cursor = 'pointer';
                 open.ondblclick = (e) => {
                     e.stopPropagation();
-                    toggleRow(row);
+                    toggleNode(container);
                 };
                 contentBox.appendChild(open);
 
-                // ** Preview Area (Visible only when collapsed) **
                 if (count > 0) {
                     const preview = document.createElement('span');
                     preview.className = 'preview-text';
-                    // Format: { Object(4) } or [ Array(10) ]
                     preview.textContent = `${typeLabel}(${count})`;
                     preview.title = "点击展开";
-                    preview.onclick = (e) => {
-                        e.stopPropagation();
-                        toggleNode(container);
-                    };
+                    preview.onclick = (e) => { e.stopPropagation(); toggleNode(container); };
                     contentBox.appendChild(preview);
 
-                    // Closing bracket for collapsed state (visual only)
                     const closeCollapsed = document.createElement('span');
-                    closeCollapsed.className = 'punctuation preview-text'; // Reuse styles
+                    closeCollapsed.className = 'punctuation preview-text';
                     closeCollapsed.style.marginLeft = '0';
                     closeCollapsed.textContent = isArr ? ']' : '}';
-                    closeCollapsed.onclick = (e) => {
-                        e.stopPropagation();
-                        toggleNode(container);
-                    };
+                    closeCollapsed.onclick = (e) => { e.stopPropagation(); toggleNode(container); };
                     contentBox.appendChild(closeCollapsed);
                 } else {
-                    // Empty object
                     const closeEmpty = document.createElement('span');
                     closeEmpty.className = 'punctuation';
                     closeEmpty.textContent = isArr ? ']' : '}';
                     contentBox.appendChild(closeEmpty);
                 }
-
             } else {
-                // Primitive
                 contentBox.appendChild(createValueSpan(data));
             }
 
-            // 4. Comma (if not last)
             if (!isObj && !isLast) {
                 const comma = document.createElement('span');
                 comma.className = 'punctuation';
@@ -801,27 +798,20 @@
                 contentBox.appendChild(comma);
             }
 
-            // 5. Action Buttons (Value | Pair)
+            // Actions
             const actions = document.createElement('div');
             actions.className = 'action-group';
 
-            // Button 1: Copy Value
             const btnVal = document.createElement('button');
             btnVal.className = 'tiny-btn';
             btnVal.textContent = '复制值';
-            btnVal.title = '仅复制此值/对象';
-            btnVal.onclick = (e) => {
-                e.stopPropagation();
-                copyText(JSON.stringify(data, null, 2));
-            };
+            btnVal.onclick = (e) => { e.stopPropagation(); copyText(JSON.stringify(data, null, 2)); };
             actions.appendChild(btnVal);
 
-            // Button 2: Copy Pair (if has key)
             if (key !== null) {
                 const btnPair = document.createElement('button');
                 btnPair.className = 'tiny-btn';
-                btnPair.textContent = '复制键值对'; // *** 修改了这里 ***
-                btnPair.title = '复制 "Key": Value 格式';
+                btnPair.textContent = '复制键值对';
                 btnPair.onclick = (e) => {
                     e.stopPropagation();
                     const valStr = JSON.stringify(data, null, 2);
@@ -830,12 +820,10 @@
                 };
                 actions.appendChild(btnPair);
             }
-
             contentBox.appendChild(actions);
             row.appendChild(contentBox);
             container.appendChild(row);
 
-            // 6. Children & Closing Bracket (for Objects)
             if (isObj && Object.keys(data).length > 0) {
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'json-children';
@@ -847,17 +835,15 @@
                     childrenDiv.appendChild(childNode);
                 });
 
-                // Append children OUTSIDE row, but inside container
                 container.appendChild(childrenDiv);
 
-                // Separate Row for Closing Bracket
                 const closeRow = document.createElement('div');
                 closeRow.className = 'json-row close-bracket-row';
-                // Padding removed from row
 
                 const closeContent = document.createElement('div');
                 closeContent.className = 'content-box';
-                closeContent.style.paddingLeft = (level * 10) + 21 + 'px';
+                closeContent.style.paddingLeft = (level * 10) + 21 + 'px'; // Indent
+
                 const closeSym = document.createElement('span');
                 closeSym.className = 'punctuation';
                 closeSym.textContent = Array.isArray(data) ? ']' : '}';
@@ -869,15 +855,11 @@
                     comma.textContent = ',';
                     closeContent.appendChild(comma);
                 }
-
                 closeRow.appendChild(closeContent);
                 container.appendChild(closeRow);
             }
-
             return container;
         }
-
-        // --- Helpers ---
 
         function createValueSpan(val) {
             const span = document.createElement('span');
@@ -905,7 +887,7 @@
         function toggleAll(expand) {
             const nodes = document.querySelectorAll('.json-node');
             nodes.forEach(node => {
-                if (node.querySelector('.collapsible-icon')) { // Only collapse objects
+                if (node.querySelector('.collapsible-icon')) {
                     if (expand) {
                         node.classList.remove('collapsed');
                         node.classList.add('expanded');
@@ -915,25 +897,6 @@
                     }
                 }
             });
-        }
-
-        function clearAll() {
-            inputArea.value = '';
-            outputDiv.innerHTML = '';
-            minifiedArea.classList.add('hidden');
-            outputDiv.style.display = 'block';
-            errorMsg.style.display = 'none';
-        }
-
-        function showError(e) {
-            errorMsg.textContent = "JSON 错误: " + e.message;
-            errorMsg.style.display = 'block';
-        }
-
-        function copyInput() { copyText(inputArea.value); }
-        function copyResult() {
-            if (isMinified) copyText(minifiedArea.value);
-            else if (currentObj) copyText(JSON.stringify(currentObj, null, 2));
         }
 
         async function copyText(text) {
@@ -947,7 +910,7 @@
                 ta.select();
                 document.execCommand("Copy");
                 ta.remove();
-                showToast("复制成功 (兼容模式) ✅");
+                showToast("复制成功 (兼容) ✅");
             }
         }
 
@@ -957,126 +920,6 @@
             t.className = "show";
             setTimeout(() => t.className = t.className.replace("show", ""), 2000);
         }
-
-        // --- Resizer Logic ---
-        const gutter = document.getElementById('gutter');
-        const container = document.getElementById('main-container');
-        const leftPanel = document.getElementById('panel-input');
-        const rightPanel = document.getElementById('panel-output');
-        let isResizing = false;
-
-        gutter.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            gutter.classList.add('dragging');
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none'; // Prevent selection
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-
-            const containerRect = container.getBoundingClientRect();
-            // Calculate percentage
-            let newLeftWidth = e.clientX - containerRect.left;
-
-            // Constrain (min 150px)
-            if (newLeftWidth < 150) newLeftWidth = 150;
-            if (newLeftWidth > containerRect.width - 150) newLeftWidth = containerRect.width - 150;
-
-            const percent = (newLeftWidth / containerRect.width) * 100;
-            leftPanel.style.width = percent + '%';
-            leftPanel.style.flex = 'none'; // Disable flex grow
-            // Right panel automatically takes remaining space due to flex:1 default (if simple)
-            // But we need to ensure right panel behaves. 
-            // Actually simpler: Set left width, Right is flex:1. 
-        });
-
-        document.addEventListener('mouseup', () => {
-            if (isResizing) {
-                isResizing = false;
-                gutter.classList.remove('dragging');
-                document.body.style.cursor = '';
-                document.body.style.userSelect = '';
-            }
-        });
-
-        // Toggle Visibility
-        function togglePanel(targetId) {
-            const target = document.getElementById(targetId);
-            const otherId = targetId === 'panel-input' ? 'panel-output' : 'panel-input';
-            const other = document.getElementById(otherId);
-            const gutterEl = document.getElementById('gutter');
-
-            // If we are collapsing the only visible panel, don't allow (optional, but good UX)
-            if (other.classList.contains('collapsed')) {
-                // Determine if we are re-opening? No, button is inside the panel. 
-                // Wait, if I collapse "Input", the button is gone? 
-                // YES. So we need a way to restore it. 
-                // Typically you add a "Restore" button somewhere else, or keep the header visible.
-
-                // Better UX for "Simple Tool":
-                // Toggle Button changes "This Panel" to Hidden?
-                // IF hid, how to get back?
-                // Creating a floating "Expand" button or similar is complex.
-
-                // Modification: The button shouldn't be "Collapse Self". 
-                // It should be "Maximize Self" (Hide Others) or "Toggle Mode".
-
-                // Let's implement "Maximize/Restore" logic instead, usually clearer.
-                // Or "Layout" dropdown.
-
-                // Simplest: "Collapse" button hides the *Content*, leaving Header? 
-                // User asked: "Input and Output sub-windows can be collapsed"
-
-                // Let's try: Click "Collapse" -> The panel becomes very thin (just header button?) or hidden entirely
-                // If Hidden entirely, we need a global toolbar button to "Reset Layout".
-            }
-
-            // Re-thinking: Maximize/Restore is safer.
-            // If I click "Maximize" on Output, Input hides. Output becomes 100%. Gutter hides.
-            // Button changes to "Restore".
-
-            const isMaximized = target.classList.contains('fullscreen');
-
-            if (isMaximized) {
-                // Restore
-                target.classList.remove('fullscreen');
-                other.classList.remove('collapsed');
-                gutterEl.style.display = 'flex';
-                // Reset text
-                updateToggleButtons(false);
-            } else {
-                // Maximize Target
-                target.classList.add('fullscreen');
-                other.classList.add('collapsed');
-                gutterEl.style.display = 'none';
-                updateToggleButtons(true, targetId);
-            }
-        }
-
-        function updateToggleButtons(isMaximized, maximizeTargetId) {
-            // Update button text to "Restore" or "Maximize"
-            const btnIn = document.querySelector('#panel-input button[onclick*="togglePanel"]');
-            const btnOut = document.querySelector('#panel-output button[onclick*="togglePanel"]');
-
-            if (!isMaximized) {
-                btnIn.textContent = "🗖 最大化窗口";
-                btnOut.textContent = "🗖 最大化窗口";
-                btnIn.title = "最大化输入窗口";
-                btnOut.title = "最大化输出窗口";
-            } else {
-                if (maximizeTargetId === 'panel-input') {
-                    btnIn.textContent = "⧉ 还原窗口";
-                    btnIn.title = "恢复分栏显示";
-                } else {
-                    btnOut.textContent = "⧉ 还原窗口";
-                    btnOut.title = "恢复分栏显示";
-                }
-            }
-        }
-
-        // Init buttons text
-        updateToggleButtons(false);
     </script>
 </body>
 
