@@ -1204,7 +1204,17 @@
 
             const textarea = document.createElement('textarea');
             textarea.className = 'subtree-textarea';
-            textarea.value = JSON.stringify(data, null, 4);
+            const jsonStr = JSON.stringify(data, null, 4);
+            textarea.value = jsonStr;
+
+            // Auto-resize logic
+            const lineCount = jsonStr.split('\n').length;
+            const lineHeight = 20; // Approx for 13px font * 1.5
+            const padding = 20;
+            const minHeight = 200;
+            const targetHeight = Math.max(minHeight, (lineCount * lineHeight) + padding);
+            textarea.style.height = targetHeight + 'px';
+            textarea.style.lineHeight = '1.5';
 
             // Cleanup helper to remove event listener
             const cleanup = () => {
