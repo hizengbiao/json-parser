@@ -884,7 +884,10 @@
             const btnVal = document.createElement('button');
             btnVal.className = 'tiny-btn';
             btnVal.textContent = '复制值';
-            btnVal.onclick = (e) => { e.stopPropagation(); copyText(JSON.stringify(data, null, 2)); };
+            btnVal.onclick = (e) => {
+                e.stopPropagation();
+                copyText(typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+            };
             actions.appendChild(btnVal);
 
             // Add Property Button (Only for Objects/Arrays)
