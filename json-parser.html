@@ -909,6 +909,17 @@
             const actions = document.createElement('div');
             actions.className = 'action-group';
 
+            if (key !== null) {
+                const btnKey = document.createElement('button');
+                btnKey.className = 'tiny-btn';
+                btnKey.textContent = '复制键';
+                btnKey.onclick = (e) => {
+                    e.stopPropagation();
+                    copyText(key);
+                };
+                actions.appendChild(btnKey);
+            }
+
             const btnVal = document.createElement('button');
             btnVal.className = 'tiny-btn';
             btnVal.textContent = '复制值';
