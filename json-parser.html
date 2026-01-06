@@ -952,9 +952,21 @@
 
                 const btnEdit = document.createElement('button');
                 btnEdit.className = 'tiny-btn';
-                btnEdit.textContent = '编辑';
+                btnEdit.textContent = '编辑值';
                 btnEdit.onclick = (e) => { e.stopPropagation(); handleEditSubtree(container, path, data); };
                 actions.appendChild(btnEdit);
+            }
+
+            if (path.length > 0) {
+                const btnDelete = document.createElement('button');
+                btnDelete.className = 'tiny-btn';
+                btnDelete.style.color = '#cf222e';
+                btnDelete.textContent = key !== null ? '删除键值对' : '删除值';
+                btnDelete.onclick = (e) => {
+                    e.stopPropagation();
+                    handleDelete(path);
+                };
+                actions.appendChild(btnDelete);
             }
 
             contentBox.appendChild(actions);
@@ -1307,6 +1319,25 @@
             // Replace the tree node with the editor
             container.replaceWith(editorDiv);
             textarea.focus();
+        }
+
+        function handleDelete(path) {
+            if (path.length === 0) {
+                currentObj = null;
+            } else {
+                let parent = currentObj;
+                for (let i = 0; i < path.length - 1; i++) {
+                    parent = parent[path[i]];
+                }
+                const lastKey = path[path.length - 1];
+                if (Array.isArray(parent)) {
+                    parent.splice(parseInt(lastKey), 1);
+                } else {
+                    delete parent[lastKey];
+                }
+            }
+            saveState();
+            reRenderTree();
         }
     </script>
 </body>
