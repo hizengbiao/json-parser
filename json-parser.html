@@ -471,6 +471,20 @@
             background-color: #0969da;
             color: white;
         }
+
+        .edit-input {
+            font-family: inherit;
+            font-size: inherit;
+            border: 1px solid #0969da;
+            border-radius: 3px;
+            padding: 0 4px;
+            margin: 0;
+            color: inherit;
+            background: #fff;
+            min-width: 60px;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2);
+        }
     </style>
 </head>
 
@@ -696,7 +710,7 @@
                 outputDiv.innerHTML = '';
                 errorMsg.style.display = 'none';
 
-                const tree = buildTree(parsed, 0, null, true);
+                const tree = buildTree(parsed, 0, null, true, []);
                 outputDiv.appendChild(tree);
                 return true;
             } catch (e) {
@@ -732,7 +746,7 @@
 
         function reRenderTree() {
             outputDiv.innerHTML = '';
-            const tree = buildTree(currentObj, 0, null, true);
+            const tree = buildTree(currentObj, 0, null, true, []);
             outputDiv.appendChild(tree);
         }
 
@@ -749,7 +763,7 @@
         }
 
         // --- Tree Builder (Nested Block Layout) ---
-        function buildTree(data, level, key, isLast) {
+        function buildTree(data, level, key, isLast, path) {
             const container = document.createElement('div');
             container.className = 'json-node expanded';
 
@@ -795,10 +809,9 @@
                 const keySpan = document.createElement('span');
                 keySpan.className = 'key';
                 keySpan.textContent = `"${key}"`;
-                if (isObj) {
-                    keySpan.style.cursor = 'pointer';
-                    keySpan.ondblclick = (e) => { e.stopPropagation(); toggleNode(container); };
-                }
+                // Single click to edit key
+                keySpan.onclick = (e) => { e.stopPropagation(); handleEditKey(keySpan, path, key); };
+
                 contentBox.appendChild(keySpan);
 
                 const colon = document.createElement('span');
@@ -846,7 +859,7 @@
                     contentBox.appendChild(closeEmpty);
                 }
             } else {
-                contentBox.appendChild(createValueSpan(data));
+                contentBox.appendChild(createValueSpan(data, path));
             }
 
             // Comma (if not last)
@@ -899,7 +912,7 @@
                 const keys = Object.keys(data);
                 keys.forEach((k, i) => {
                     const nextKey = Array.isArray(data) ? null : k;
-                    const childNode = buildTree(data[k], level + 1, nextKey, i === keys.length - 1);
+                    const childNode = buildTree(data[k], level + 1, nextKey, i === keys.length - 1, [...path, k]);
                     childrenDiv.appendChild(childNode);
                 });
 
@@ -936,7 +949,7 @@
             return container;
         }
 
-        function createValueSpan(val) {
+        function createValueSpan(val, path) {
             const span = document.createElement('span');
             if (typeof val === 'string') {
                 span.className = 'string';
@@ -951,6 +964,10 @@
                 span.className = 'null';
                 span.textContent = 'null';
             }
+
+            // Edit Value on click
+            span.onclick = (e) => { e.stopPropagation(); handleEditValue(span, path, val); };
+
             return span;
         }
 
@@ -994,6 +1011,124 @@
             t.textContent = msg;
             t.className = "show";
             setTimeout(() => t.className = t.className.replace("show", ""), 2000);
+        }
+
+        // --- Editing Logic ---
+
+        function handleEditKey(element, path, oldKey) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = oldKey;
+            input.className = 'edit-input';
+
+            function commit() {
+                const newKey = input.value.trim();
+                if (newKey && newKey !== oldKey) {
+                    // Path points to the value, so the parent object is path[:-1]
+                    const parentPath = path.slice(0, -1);
+                    renameKey(parentPath, oldKey, newKey);
+                } else {
+                    reRenderTree(); // Cancel/Restore
+                }
+            }
+
+            input.onblur = commit;
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') { input.blur(); }
+                if (e.key === 'Escape') { reRenderTree(); }
+            };
+
+            element.replaceWith(input);
+            input.focus();
+        }
+
+        function handleEditValue(element, path, oldVal) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            // Show string without quotes for editing convenience, unless it's complex
+            input.value = (typeof oldVal === 'string') ? oldVal : JSON.stringify(oldVal);
+            input.className = 'edit-input';
+
+            function commit() {
+                const raw = input.value; // Don't trim automatically in case of string with spaces
+                let newVal;
+                try {
+                    // Try to parse as JSON (numbers, boolean, null, quoted strings)
+                    newVal = JSON.parse(raw);
+                } catch (e) {
+                    // Fallback to string
+                    newVal = raw;
+                }
+
+                if (newVal !== oldVal) {
+                    setValueByPath(path, newVal);
+                } else {
+                    reRenderTree();
+                }
+            }
+
+            input.onblur = commit;
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') { input.blur(); }
+                if (e.key === 'Escape') { reRenderTree(); }
+            };
+
+            element.replaceWith(input);
+            input.focus();
+        }
+
+        function setValueByPath(path, value) {
+            if (path.length === 0) {
+                currentObj = value;
+            } else {
+                let ref = currentObj;
+                for (let i = 0; i < path.length - 1; i++) {
+                    ref = ref[path[i]];
+                }
+                ref[path[path.length - 1]] = value;
+            }
+            saveState();
+            reRenderTree();
+        }
+
+        function renameKey(parentPath, oldKey, newKey) {
+            let parent;
+            if (parentPath.length === 0) {
+                parent = currentObj;
+            } else {
+                parent = currentObj;
+                for (let i = 0; i < parentPath.length; i++) {
+                    parent = parent[parentPath[i]];
+                }
+            }
+
+            if (Array.isArray(parent)) return; // Should not happen for keys
+
+            // Preserve order
+            const keys = Object.keys(parent);
+            const newObj = {};
+            keys.forEach(k => {
+                if (k === oldKey) {
+                    newObj[newKey] = parent[oldKey];
+                } else {
+                    newObj[k] = parent[k];
+                }
+            });
+
+            // Replace parent content
+            if (parentPath.length === 0) {
+                currentObj = newObj;
+            } else {
+                // We need to re-assign the new object to the parent's parent
+                // But since we can't easily replace the object reference in the tree without traversing again...
+                // Simpler mutation approach: delete all keys and restore new ones
+                // This keeps the reference intact
+                keys.forEach(k => delete parent[k]);
+                Object.assign(parent, newObj);
+            }
+
+            saveState();
+            reRenderTree();
         }
     </script>
 </body>
