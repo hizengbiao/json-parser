@@ -473,7 +473,7 @@
             <div class="panel-header">
                 <h3>输入 JSON</h3>
                 <div>
-                    <button class="icon-btn" onclick="togglePanel('panel-input')" title="折叠/展开此面板">◀ 折叠</button>
+                    <button class="icon-btn" onclick="togglePanel('panel-input')" title="最大化此窗口">🗖 最大化窗口</button>
                     <button class="icon-btn" onclick="copyInput()" title="复制原始内容">📋 复制</button>
                 </div>
             </div>
@@ -486,7 +486,7 @@
             <div class="panel-header">
                 <h3>格式化结果</h3>
                 <div>
-                    <button class="icon-btn" onclick="togglePanel('panel-output')" title="折叠/展开此面板">▶ 折叠</button>
+                    <button class="icon-btn" onclick="togglePanel('panel-output')" title="最大化此窗口">🗖 最大化窗口</button>
                     <button class="icon-btn" onclick="toggleAll(true)" title="全部展开">📖 展开</button>
                     <button class="icon-btn" onclick="toggleAll(false)" title="全部收起">📕 收起</button>
                     <button class="icon-btn" onclick="sortJson(true)" title="按Key升序排列">⬇️ 升序</button>
@@ -1060,16 +1060,16 @@
             const btnOut = document.querySelector('#panel-output button[onclick*="togglePanel"]');
 
             if (!isMaximized) {
-                btnIn.textContent = "◀ 最大化";
-                btnOut.textContent = "▶ 最大化";
-                btnIn.title = "隐藏右侧面板";
-                btnOut.title = "隐藏左侧面板";
+                btnIn.textContent = "🗖 最大化窗口";
+                btnOut.textContent = "🗖 最大化窗口";
+                btnIn.title = "最大化输入窗口";
+                btnOut.title = "最大化输出窗口";
             } else {
                 if (maximizeTargetId === 'panel-input') {
-                    btnIn.textContent = "👐 还原";
+                    btnIn.textContent = "⧉ 还原窗口";
                     btnIn.title = "恢复分栏显示";
                 } else {
-                    btnOut.textContent = "👐 还原";
+                    btnOut.textContent = "⧉ 还原窗口";
                     btnOut.title = "恢复分栏显示";
                 }
             }
