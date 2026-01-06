@@ -181,51 +181,49 @@
             font-size: 13px;
             line-height: 1.6;
             width: 100%;
-            counter-reset: line;
-            padding-bottom: 20px;
+            padding: 10px;
+            /* Add some global padding */
+            box-sizing: border-box;
         }
 
         .json-node {
-            /* Container for a key-value or object */
+            border-radius: 4px;
+            transition: background-color 0.2s;
         }
+
+        .json-node.object-node {
+            margin: 6px 0;
+            padding: 6px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            background-color: rgba(0, 0, 0, 0.03);
+            /* Progressive shading */
+            position: relative;
+        }
+
+        /* Dark mode adjustments if needed, though mostly using rgba opacity logic */
 
         .json-row {
             display: flex;
             flex-wrap: nowrap;
-            /* Prevent wrapping so line numbers stay left */
+            align-items: center;
+            /* Center items vertically in the header */
             padding-left: 0;
             position: relative;
         }
 
-        .json-row:hover {
-            background-color: var(--hover-row);
+        /* Hide the old gutter line counter in tree mode as it doesn't fit the block layout well */
+        .json-tree .json-row::before {
+            display: none;
         }
 
-        .json-node:hover {
-            background-color: var(--hover-path-bg);
-            border-radius: 4px;
-            box-shadow: inset 1px 0 0 0 rgba(0, 0, 0, 0.2);
+        .json-node:hover>.json-row {
+            /* Only highlight the header row of the current card, not the entire card content */
+            background-color: transparent;
         }
 
-        .json-row::before {
-            counter-increment: line;
-            content: counter(line);
-            display: inline-block;
-            width: 40px;
-            min-width: 40px;
-            text-align: right;
-            padding-right: 15px;
-            margin-right: 10px;
-            color: var(--gutter-color);
-            border-right: 1px solid #eee;
-            user-select: none;
-            font-size: 12px;
-            background-color: var(--gutter-bg);
-            /* Sticky line number */
-            position: sticky;
-            left: 0;
-            z-index: 2;
-            flex-shrink: 0;
+        .json-node.object-node:hover {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            border-color: rgba(0, 0, 0, 0.2);
         }
 
         .content-box {
@@ -240,6 +238,13 @@
 
         .json-children {
             width: 100%;
+            padding-left: 20px;
+            /* Structural indentation */
+            padding-top: 4px;
+            border-left: 2px solid rgba(0, 0, 0, 0.05);
+            /* Optional guide line */
+            margin-left: 4px;
+            /* Align with guide line */
         }
 
         /* Collapsing */
@@ -383,10 +388,7 @@
             display: none !important;
         }
 
-        #toast,
-        #error-msg {
-            /* Standard styles */
-        }
+
 
         #toast {
             visibility: hidden;
@@ -719,43 +721,52 @@
             return obj;
         }
 
-        // --- Tree Builder (Preserving previous improvements) ---
+        // --- Tree Builder (Nested Block Layout) ---
         function buildTree(data, level, key, isLast) {
             const container = document.createElement('div');
             container.className = 'json-node expanded';
 
             const isObj = typeof data === 'object' && data !== null;
+            if (isObj) {
+                container.classList.add('object-node');
+            }
+
+            // Header Row
             const row = document.createElement('div');
             row.className = 'json-row';
 
-            // Indent content box
+            // Content Box for Key/Value/Preview
             const contentBox = document.createElement('div');
             contentBox.className = 'content-box';
-            contentBox.style.paddingLeft = (level * 10) + 5 + 'px';
 
+            // No manual padding-left needed anymore, handled by CSS nesting
+            // contentBox.style.paddingLeft = ... 
+
+            // Collapser
             if (isObj && Object.keys(data).length > 0) {
                 const toggle = document.createElement('span');
                 toggle.className = 'collapsible-icon';
                 toggle.onclick = (e) => { e.stopPropagation(); toggleNode(container); };
                 contentBox.appendChild(toggle);
             } else {
-                const spacer = document.createElement('span');
-                spacer.style.width = '16px';
-                spacer.style.display = 'inline-block';
-                contentBox.appendChild(spacer);
+                // Align non-collapsible items if needed, or just let them flow
+                if (isObj) {
+                    // Empty object
+                    const spacer = document.createElement('span');
+                    spacer.style.width = '14px';
+                    spacer.style.display = 'inline-block';
+                    contentBox.appendChild(spacer);
+                }
             }
 
+            // Key
             if (key !== null) {
                 const keySpan = document.createElement('span');
                 keySpan.className = 'key';
                 keySpan.textContent = `"${key}"`;
                 if (isObj) {
                     keySpan.style.cursor = 'pointer';
-                    // Double click key to toggle
-                    keySpan.ondblclick = (e) => {
-                        e.stopPropagation();
-                        toggleNode(container);
-                    };
+                    keySpan.ondblclick = (e) => { e.stopPropagation(); toggleNode(container); };
                 }
                 contentBox.appendChild(keySpan);
 
@@ -765,6 +776,7 @@
                 contentBox.appendChild(colon);
             }
 
+            // Value or Opening Bracket
             if (isObj) {
                 const isArr = Array.isArray(data);
                 const keys = Object.keys(data);
@@ -775,13 +787,13 @@
                 open.className = 'punctuation';
                 open.textContent = isArr ? '[' : '{';
                 open.style.cursor = 'pointer';
-                open.ondblclick = (e) => {
-                    e.stopPropagation();
-                    toggleNode(container);
-                };
+                open.ondblclick = (e) => { e.stopPropagation(); toggleNode(container); };
                 contentBox.appendChild(open);
 
                 if (count > 0) {
+                    // Preview (when collapsed or even expanded for info)
+                    // For block layout, maybe only show count when collapsed? 
+                    // Or standard "Array(5)" style. Let's keep existing logic.
                     const preview = document.createElement('span');
                     preview.className = 'preview-text';
                     preview.textContent = `${typeLabel}(${count})`;
@@ -789,6 +801,7 @@
                     preview.onclick = (e) => { e.stopPropagation(); toggleNode(container); };
                     contentBox.appendChild(preview);
 
+                    // If collapsed, show closing bracket here
                     const closeCollapsed = document.createElement('span');
                     closeCollapsed.className = 'punctuation preview-text';
                     closeCollapsed.style.marginLeft = '0';
@@ -805,6 +818,14 @@
                 contentBox.appendChild(createValueSpan(data));
             }
 
+            // Comma (if not last)
+            // Note: For block layout, usually the comma is after the closing bracket of the block.
+            // But if we put the comma in the Header row for values, that works.
+            // For Objects, we need to handle comma after the footer. 
+            // Let's attach comma to the container or footer?
+            // Existing logic puts comma in contentBox. For primitives this is fine.
+            // For objects, verify where it goes.
+
             if (!isObj && !isLast) {
                 const comma = document.createElement('span');
                 comma.className = 'punctuation';
@@ -812,32 +833,21 @@
                 contentBox.appendChild(comma);
             }
 
-            // Actions
+            // Actions (Copy Val etc)
             const actions = document.createElement('div');
             actions.className = 'action-group';
 
             const btnVal = document.createElement('button');
             btnVal.className = 'tiny-btn';
-            btnVal.textContent = '复制值';
+            btnVal.textContent = 'Val';
             btnVal.onclick = (e) => { e.stopPropagation(); copyText(JSON.stringify(data, null, 2)); };
             actions.appendChild(btnVal);
 
-            if (key !== null) {
-                const btnPair = document.createElement('button');
-                btnPair.className = 'tiny-btn';
-                btnPair.textContent = '复制键值对';
-                btnPair.onclick = (e) => {
-                    e.stopPropagation();
-                    const valStr = JSON.stringify(data, null, 2);
-                    const pairStr = `"${key}": ${valStr}`;
-                    copyText(pairStr);
-                };
-                actions.appendChild(btnPair);
-            }
             contentBox.appendChild(actions);
             row.appendChild(contentBox);
             container.appendChild(row);
 
+            // Children (if object & not empty)
             if (isObj && Object.keys(data).length > 0) {
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'json-children';
@@ -851,12 +861,13 @@
 
                 container.appendChild(childrenDiv);
 
+                // Footer Row (Closing Bracket)
                 const closeRow = document.createElement('div');
                 closeRow.className = 'json-row close-bracket-row';
 
                 const closeContent = document.createElement('div');
                 closeContent.className = 'content-box';
-                closeContent.style.paddingLeft = (level * 10) + 21 + 'px'; // Indent
+                // No manual indent
 
                 const closeSym = document.createElement('span');
                 closeSym.className = 'punctuation';
@@ -869,9 +880,11 @@
                     comma.textContent = ',';
                     closeContent.appendChild(comma);
                 }
+
                 closeRow.appendChild(closeContent);
                 container.appendChild(closeRow);
             }
+
             return container;
         }
 
