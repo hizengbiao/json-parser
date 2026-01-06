@@ -187,9 +187,15 @@
 
         .content-box {
             flex: 1;
-            display: flex;
-            align-items: center;
-            white-space: nowrap;
+            display: block;
+            /* Was flex, changed to block for text flow */
+            white-space: normal;
+            /* Allow wrapping */
+            word-break: break-all;
+            /* Force wrapping for long strings */
+            line-height: 1.5;
+            min-width: 0;
+            /* Fix flex child shrinking */
         }
 
         /* Indentation guide */
