@@ -1206,6 +1206,24 @@
             textarea.className = 'subtree-textarea';
             textarea.value = JSON.stringify(data, null, 4);
 
+            // Cleanup helper to remove event listener
+            const cleanup = () => {
+                document.removeEventListener('click', outsideClickListener);
+            };
+
+            const outsideClickListener = (e) => {
+                // If click is outside the editor container
+                if (!editorDiv.contains(e.target)) {
+                    cleanup();
+                    reRenderTree(); // Cancel/Restore
+                }
+            };
+
+            // Delay adding the listener to avoid triggering it immediately with the current click
+            setTimeout(() => {
+                document.addEventListener('click', outsideClickListener);
+            }, 0);
+
             const btnRow = document.createElement('div');
             btnRow.style.display = 'flex';
             btnRow.style.gap = '8px';
@@ -1221,18 +1239,42 @@
             btnCancel.className = 'btn btn-default';
             btnCancel.textContent = '取消';
             btnCancel.style.padding = '4px 12px';
-            btnSave.style.fontSize = '12px';
+            btnCancel.style.fontSize = '12px';
 
             btnSave.onclick = () => {
+                cleanup();
                 try {
                     const newData = JSON.parse(textarea.value);
                     setValueByPath(path, newData); // This triggers reRenderTree
                 } catch (e) {
                     showToast("JSON 格式错误: " + e.message);
+                    // Re-attach listener if we failed to save? 
+                    // No, usually we want to keep editing. 
+                    // But if we cleanup(), we need to re-attach or just not cleanup if invalid? 
+                    // Let's re-attach if we stay open.
+                    // Actually simplier: Don't cleanup if error.
+                    // But we called cleanup() at start.
+                    // Let's fix logic inside: only cleanup on success.
+                    document.addEventListener('click', outsideClickListener);
                 }
             };
 
-            btnCancel.onclick = () => {
+            // Refined Save Logic to handle retry
+            btnSave.onclick = (e) => {
+                e.stopPropagation(); // Prevent triggering outside click immediately
+                try {
+                    const newData = JSON.parse(textarea.value);
+                    cleanup(); // Only cleanup on success
+                    setValueByPath(path, newData);
+                } catch (e) {
+                    showToast("JSON 格式错误: " + e.message);
+                    textarea.focus();
+                }
+            };
+
+            btnCancel.onclick = (e) => {
+                e.stopPropagation();
+                cleanup();
                 reRenderTree(); // Restore view
             };
 
