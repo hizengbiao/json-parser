@@ -430,6 +430,32 @@
             bottom: 50px;
         }
 
+        .path-tooltip {
+            position: fixed;
+            background: #24292f;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 2000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            white-space: nowrap;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .path-tooltip span {
+            color: #8b949e;
+            margin: 0 4px;
+        }
+
+        .path-tooltip b {
+            color: #58a6ff;
+            font-weight: 500;
+        }
+
         #error-msg {
             color: #cf222e;
             background: #ffebe9;
@@ -558,6 +584,7 @@
     </div>
 
     <div id="toast">提示信息</div>
+    <div id="path-tooltip" class="path-tooltip"></div>
 
     <script>
         const inputArea = document.getElementById('json-input');
@@ -592,6 +619,13 @@
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
             if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); }
         });
+
+        function updateTooltipPos(e) {
+            const tooltip = document.getElementById('path-tooltip');
+            if (!tooltip) return;
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        }
 
         function saveState() {
             const val = inputArea.value;
@@ -843,6 +877,22 @@
                 const keySpan = document.createElement('span');
                 keySpan.className = 'key';
                 keySpan.textContent = `"${key}"`;
+
+                keySpan.onmouseenter = (e) => {
+                    const tooltip = document.getElementById('path-tooltip');
+                    if (path.length > 0) {
+                        const parts = path.map((p, i) => i === path.length - 1 ? `<b>${p}</b>` : p);
+                        tooltip.innerHTML = parts.join('<span>&gt;</span>');
+                        tooltip.style.display = 'block';
+                        updateTooltipPos(e);
+                    }
+                };
+                keySpan.onmousemove = updateTooltipPos;
+                keySpan.onmouseleave = () => {
+                    const tooltip = document.getElementById('path-tooltip');
+                    tooltip.style.display = 'none';
+                };
+
                 // Single click to edit key
                 keySpan.onclick = (e) => { e.stopPropagation(); handleEditKey(keySpan, path, key); };
 
