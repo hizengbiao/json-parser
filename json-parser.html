@@ -1051,6 +1051,21 @@
                 btnAdd.onclick = (e) => { e.stopPropagation(); handleAddProperty(path, Array.isArray(data)); };
                 actions.appendChild(btnAdd);
 
+                const btnFold = document.createElement('button');
+                btnFold.className = 'tiny-btn';
+                btnFold.textContent = '折叠子树';
+                btnFold.onclick = (e) => {
+                    e.stopPropagation();
+                    const nStr = prompt("请输入数字N，从当前层级开始将其深度N层以上的子树全部折叠");
+                    if (nStr !== null) {
+                        const n = parseInt(nStr);
+                        if (!isNaN(n)) {
+                            handleFoldSubtree(container, n);
+                        }
+                    }
+                };
+                actions.appendChild(btnFold);
+
                 const btnEdit = document.createElement('button');
                 btnEdit.className = 'tiny-btn';
                 btnEdit.textContent = '编辑值';
@@ -1449,6 +1464,36 @@
             syncToInput();
             saveState();
             reRenderTree();
+        }
+
+        function handleFoldSubtree(container, N) {
+            const allNodes = [container, ...container.querySelectorAll('.json-node')];
+            allNodes.forEach(node => {
+                let depth = 0;
+                let cur = node;
+                while (cur && cur !== container) {
+                    if (cur.parentElement && cur.parentElement.closest('.json-node')) {
+                        depth++;
+                        cur = cur.parentElement.closest('.json-node');
+                    } else {
+                        break;
+                    }
+                }
+
+                const icon = node.querySelector('.collapsible-icon');
+                if (icon) {
+                    // depth is relative to container.
+                    // depth 0 is container, depth 1 is child, etc.
+                    // User N=1: child (d=1) expanded, grandchild (d=2) collapsed.
+                    if (depth > N) {
+                        node.classList.remove('expanded');
+                        node.classList.add('collapsed');
+                    } else {
+                        node.classList.remove('collapsed');
+                        node.classList.add('expanded');
+                    }
+                }
+            });
         }
     </script>
 </body>
