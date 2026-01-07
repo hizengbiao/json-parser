@@ -560,6 +560,7 @@
 
     <div class="main-actions">
         <!-- Global Actions -->
+        <button class="btn btn-default" onclick="pasteAndFormat()" title="从剪贴板粘贴并格式化">📋 粘贴并格式化</button>
         <button class="btn btn-default" onclick="handleFormat()" title="格式化为树状视图">⚡ 格式化</button>
         <button class="btn btn-default" onclick="showEditor()" title="编辑源码">✏️ 编辑</button>
         <button class="btn btn-default" onclick="handleMinify()" title="压缩 JSON">📦 压缩</button>
@@ -717,6 +718,24 @@
             if (parseAndRender()) {
                 switchMode('tree');
                 showToast("格式化成功 ✅");
+            }
+        }
+
+        async function pasteAndFormat() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (!text) {
+                    showToast("剪贴板为空");
+                    return;
+                }
+                inputArea.value = text;
+                saveState(); // Update undo history
+
+                // Try to format
+                handleFormat();
+            } catch (err) {
+                showToast("读取剪贴板失败: " + err.message);
+                console.error(err);
             }
         }
 
