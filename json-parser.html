@@ -192,6 +192,8 @@
         .json-node {
             border-radius: 4px;
             transition: background-color 0.2s;
+            padding-left: 5px;
+            /* Ensure alignment between primitives and objects */
         }
 
         .json-node.object-node {
@@ -1073,21 +1075,19 @@
             // No manual padding-left needed anymore, handled by CSS nesting
             // contentBox.style.paddingLeft = ... 
 
-            // Collapser
+            // Collapser or Spacer
             if (isObj && Object.keys(data).length > 0) {
                 const toggle = document.createElement('span');
                 toggle.className = 'collapsible-icon';
                 toggle.onclick = (e) => { e.stopPropagation(); toggleNode(container); };
                 contentBox.appendChild(toggle);
             } else {
-                // Align non-collapsible items if needed, or just let them flow
-                if (isObj) {
-                    // Empty object
-                    const spacer = document.createElement('span');
-                    spacer.style.width = '14px';
-                    spacer.style.display = 'inline-block';
-                    contentBox.appendChild(spacer);
-                }
+                // Always add spacer for alignment (primitives, empty objects)
+                const spacer = document.createElement('span');
+                spacer.style.display = 'inline-block';
+                spacer.style.width = '14px';
+                spacer.style.marginRight = '2px';
+                contentBox.appendChild(spacer);
             }
 
             // Key
@@ -1311,7 +1311,13 @@
 
                 const closeContent = document.createElement('div');
                 closeContent.className = 'content-box';
-                // No manual indent
+
+                // Add spacer to align closing bracket with opening
+                const spacer = document.createElement('span');
+                spacer.style.display = 'inline-block';
+                spacer.style.width = '14px';
+                spacer.style.marginRight = '2px';
+                closeContent.appendChild(spacer);
 
                 const closeSym = document.createElement('span');
                 closeSym.className = 'punctuation';
