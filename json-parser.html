@@ -451,11 +451,14 @@
 
         .path-segment {
             cursor: pointer;
-            transition: color 0.2s;
+            transition: all 0.2s;
+            color: #58a6ff;
+            padding: 0 2px;
+            border-radius: 2px;
         }
 
         .path-segment:hover {
-            color: #58a6ff;
+            background: rgba(88, 166, 255, 0.15);
             text-decoration: underline;
         }
 
@@ -1136,9 +1139,10 @@
                             const segmentSpan = document.createElement('span');
                             segmentSpan.className = 'path-segment';
                             segmentSpan.textContent = segmentText;
+
+                            // Highlight the current leaf node slightly differently but still blue
                             if (idx === path.length - 1) {
                                 segmentSpan.style.fontWeight = 'bold';
-                                segmentSpan.style.color = '#58a6ff';
                             }
 
                             // Click segment to scroll to that element
@@ -1387,28 +1391,45 @@
          * @param {Array} targetPath 
          */
         function scrollToPath(targetPath) {
+            // Ensure we are in tree mode
+            if (!isTreeMode) {
+                switchMode('tree');
+            }
+
             const nodes = document.querySelectorAll('.json-node');
             const targetPathStr = JSON.stringify(targetPath);
 
+            let targetNode = null;
             for (const node of nodes) {
                 if (node.dataset.path === targetPathStr) {
-                    // Ensure all parents are expanded
-                    expandParents(node);
-
-                    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                    // Flash effect
-                    const row = node.querySelector('.json-row');
-                    if (row) {
-                        const originalBg = row.style.backgroundColor;
-                        row.style.transition = 'background-color 0.3s';
-                        row.style.backgroundColor = 'rgba(255, 255, 0, 0.4)';
-                        setTimeout(() => {
-                            row.style.backgroundColor = originalBg;
-                        }, 1000);
-                    }
+                    targetNode = node;
                     break;
                 }
+            }
+
+            if (targetNode) {
+                // 1. Ensure all parents are expanded first
+                expandParents(targetNode);
+
+                // 2. Use a small timeout to let the DOM layout settle after expansions
+                setTimeout(() => {
+                    targetNode.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                        inline: 'nearest'
+                    });
+
+                    // Flash effect on the header row
+                    const row = targetNode.querySelector('.json-row');
+                    if (row) {
+                        row.style.transition = 'none';
+                        row.style.backgroundColor = 'rgba(255, 255, 0, 0.6)';
+                        // Force reflow
+                        row.offsetHeight;
+                        row.style.transition = 'background-color 1s ease-out';
+                        row.style.backgroundColor = 'transparent';
+                    }
+                }, 50);
             }
         }
 
