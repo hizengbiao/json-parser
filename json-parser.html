@@ -440,7 +440,6 @@
             border-radius: 4px;
             font-size: 12px;
             pointer-events: auto;
-            cursor: pointer;
             z-index: 2000;
             display: none;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -448,23 +447,39 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             border: 1px solid rgba(255, 255, 255, 0.1);
             user-select: none;
-            transition: background 0.2s;
         }
 
-        .path-tooltip:hover {
-            background: #2f363d;
+        .path-segment {
+            cursor: pointer;
+            transition: color 0.2s;
         }
 
-        .path-tooltip::before {
-            content: " (点击复制) ";
+        .path-segment:hover {
+            color: #58a6ff;
+            text-decoration: underline;
+        }
+
+        .path-copy-btn {
             font-size: 10px;
             color: #8b949e;
-            margin-left: 8px;
+            margin-left: 12px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.2s;
+            display: inline-block;
         }
 
-        .path-tooltip span {
+        .path-copy-btn:hover {
+            background: #0969da;
+            color: #fff;
+        }
+
+        .path-tooltip span.separator {
             color: #8b949e;
             margin: 0 4px;
+            cursor: default;
         }
 
         .path-tooltip b {
@@ -1109,32 +1124,52 @@
                     clearTimeout(tooltipTimer);
                     const tooltip = document.getElementById('path-tooltip');
                     if (path.length > 0) {
-                        const formattedParts = [];
+                        tooltip.innerHTML = ''; // Clear previous content
                         const plainPathParts = [];
                         let ref = currentObj;
 
                         path.forEach((p, idx) => {
                             const isArr = Array.isArray(ref);
-                            const segment = isArr ? `[${p}]` : p;
-                            plainPathParts.push(segment);
+                            const segmentText = isArr ? `[${p}]` : p;
+                            plainPathParts.push(segmentText);
 
+                            const segmentSpan = document.createElement('span');
+                            segmentSpan.className = 'path-segment';
+                            segmentSpan.textContent = segmentText;
                             if (idx === path.length - 1) {
-                                formattedParts.push(`<b>${segment}</b>`);
-                            } else {
-                                formattedParts.push(segment);
+                                segmentSpan.style.fontWeight = 'bold';
+                                segmentSpan.style.color = '#58a6ff';
+                            }
+
+                            // Click segment to scroll to that element
+                            segmentSpan.onclick = (event) => {
+                                event.stopPropagation();
+                                const targetPath = path.slice(0, idx + 1);
+                                scrollToPath(targetPath);
+                            };
+
+                            tooltip.appendChild(segmentSpan);
+
+                            if (idx < path.length - 1) {
+                                const sep = document.createElement('span');
+                                sep.className = 'separator';
+                                sep.textContent = '>';
+                                tooltip.appendChild(sep);
                             }
                             ref = ref[p];
                         });
 
-                        tooltip.innerHTML = formattedParts.join('<span>&gt;</span>');
-                        tooltip.style.display = 'block';
-
-                        tooltip.onclick = (event) => {
+                        const copyBtn = document.createElement('span');
+                        copyBtn.className = 'path-copy-btn';
+                        copyBtn.textContent = '点击复制完整路径';
+                        copyBtn.onclick = (event) => {
                             event.stopPropagation();
                             copyText(plainPathParts.join(' > '));
                             tooltip.style.display = 'none';
                         };
+                        tooltip.appendChild(copyBtn);
 
+                        tooltip.style.display = 'block';
                         updateTooltipPos(e);
                     }
                 };
@@ -1343,7 +1378,49 @@
                 container.appendChild(closeRow);
             }
 
+            container.dataset.path = JSON.stringify(path);
             return container;
+        }
+
+        /**
+         * Scrolls to a specific JSON node based on its path
+         * @param {Array} targetPath 
+         */
+        function scrollToPath(targetPath) {
+            const nodes = document.querySelectorAll('.json-node');
+            const targetPathStr = JSON.stringify(targetPath);
+
+            for (const node of nodes) {
+                if (node.dataset.path === targetPathStr) {
+                    // Ensure all parents are expanded
+                    expandParents(node);
+
+                    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    // Flash effect
+                    const row = node.querySelector('.json-row');
+                    if (row) {
+                        const originalBg = row.style.backgroundColor;
+                        row.style.transition = 'background-color 0.3s';
+                        row.style.backgroundColor = 'rgba(255, 255, 0, 0.4)';
+                        setTimeout(() => {
+                            row.style.backgroundColor = originalBg;
+                        }, 1000);
+                    }
+                    break;
+                }
+            }
+        }
+
+        function expandParents(node) {
+            let parent = node.parentElement;
+            while (parent && parent !== outputDiv) {
+                if (parent.classList.contains('json-node')) {
+                    parent.classList.remove('collapsed');
+                    parent.classList.add('expanded');
+                }
+                parent = parent.parentElement;
+            }
         }
 
         function createValueSpan(val, path) {
