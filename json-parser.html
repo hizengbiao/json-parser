@@ -1138,7 +1138,6 @@
                         updateTooltipPos(e);
                     }
                 };
-                keySpan.onmousemove = updateTooltipPos;
                 keySpan.onmouseleave = () => {
                     tooltipTimer = setTimeout(() => {
                         document.getElementById('path-tooltip').style.display = 'none';
