@@ -615,6 +615,7 @@
 
         let currentObj = null;
         let isTreeMode = false;
+        let sourceDirty = false; // Flag to defer expensive stringification
 
         // Undo/Redo
         const historyStack = [];
@@ -662,6 +663,14 @@
         function syncToInput() {
             if (currentObj !== null) {
                 inputArea.value = JSON.stringify(currentObj, null, 4);
+                sourceDirty = false;
+            }
+        }
+
+        function ensureSynced() {
+            if (sourceDirty) {
+                syncToInput();
+                saveState();
             }
         }
 
@@ -704,19 +713,19 @@
         }
 
         function showEditor() {
-            // Switch back to source
-            // Ideally, populate with formatted JSON if we were in tree mode?
-            // Optional: User might want to keep what they typed.
-            // But if they sorted, we should sync back.
-            if (currentObj && isTreeMode) {
-                inputArea.value = JSON.stringify(currentObj, null, 4);
-                saveState();
-            }
+            ensureSynced();
             switchMode('source');
         }
 
         function handleFormat() {
-            // Triggered by Format Button
+            // If we are in tree mode and have dirty data, re-render from object instead of input
+            if (isTreeMode && sourceDirty) {
+                reRenderTree();
+                ensureSynced();
+                showToast("同步格式化成功 ✅");
+                return;
+            }
+
             if (parseAndRender()) {
                 switchMode('tree');
                 showToast("格式化成功 ✅");
@@ -1489,8 +1498,7 @@
                 }
                 ref[path[path.length - 1]] = value;
             }
-            syncToInput();
-            saveState();
+            sourceDirty = true;
         }
 
 
@@ -1529,8 +1537,7 @@
                 Object.assign(parent, newObj);
             }
 
-            syncToInput();
-            saveState();
+            sourceDirty = true;
         }
 
 
@@ -1585,7 +1592,7 @@
                     try {
                         const newData = JSON.parse(textarea.value);
                         setValueByPathWithoutRerender(path, newData);
-                        showToast("值已更新 (未格式化预览) ✅");
+                        showToast("值已更新 (延迟同步) ✅");
 
                         // Use a div to allow block-level multi-line display
                         const previewEl = document.createElement('div');
@@ -1600,8 +1607,15 @@
                         previewEl.style.marginTop = '4px';
                         previewEl.style.cursor = 'pointer';
 
-                        previewEl.textContent = textarea.value;
-                        previewEl.title = "已修改，点击此处或『格式化』同步树状结构";
+                        // Performance protection: if the edited content is extremely large, limit the preview
+                        const val = textarea.value;
+                        if (val.length > 50000) {
+                            previewEl.textContent = val.substring(0, 50000) + "\n... (内容过多，已截断预览) ...";
+                        } else {
+                            previewEl.textContent = val;
+                        }
+
+                        previewEl.title = "内容已更新，点击此处或『格式化』同步";
                         previewEl.onclick = () => handleFormat();
 
                         editorDiv.replaceWith(previewEl);
@@ -1640,7 +1654,7 @@
                     const newData = JSON.parse(textarea.value);
                     cleanup();
                     setValueByPathWithoutRerender(path, newData);
-                    showToast("值已更新 (未格式化预览) ✅");
+                    showToast("值已更新 (延迟同步) ✅");
 
                     const previewEl = document.createElement('div');
                     previewEl.className = 'string';
@@ -1653,8 +1667,14 @@
                     previewEl.style.marginTop = '4px';
                     previewEl.style.cursor = 'pointer';
 
-                    previewEl.textContent = textarea.value;
-                    previewEl.title = "已修改，点击此处或『格式化』同步树状结构";
+                    const val = textarea.value;
+                    if (val.length > 50000) {
+                        previewEl.textContent = val.substring(0, 50000) + "\n... (内容过多，已截断预览) ...";
+                    } else {
+                        previewEl.textContent = val;
+                    }
+
+                    previewEl.title = "已修改，点击此处或『格式化』同步";
                     previewEl.onclick = () => handleFormat();
 
                     editorDiv.replaceWith(previewEl);
