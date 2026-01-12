@@ -1415,16 +1415,24 @@
                 if (newKey && newKey !== oldKey) {
                     // Path points to the value, so the parent object is path[:-1]
                     const parentPath = path.slice(0, -1);
-                    renameKey(parentPath, oldKey, newKey);
+                    renameKeyWithoutRerender(parentPath, oldKey, newKey);
+                    showToast("键名已更新 (点击格式化查看)");
+                    element.textContent = `"${newKey}"`;
+                    // Update the onclick to use the new key for next edit
+                    element.onclick = (e) => { e.stopPropagation(); handleEditKey(element, path, newKey); };
                 } else {
-                    reRenderTree(); // Cancel/Restore
+                    element.textContent = `"${oldKey}"`;
                 }
+                input.replaceWith(element);
             }
 
             input.onblur = commit;
             input.onkeydown = (e) => {
                 if (e.key === 'Enter') { input.blur(); }
-                if (e.key === 'Escape') { reRenderTree(); }
+                if (e.key === 'Escape') {
+                    element.textContent = `"${oldKey}"`;
+                    input.replaceWith(element);
+                }
             };
 
             element.replaceWith(input);
@@ -1450,16 +1458,23 @@
                 }
 
                 if (newVal !== oldVal) {
-                    setValueByPath(path, newVal);
+                    setValueByPathWithoutRerender(path, newVal);
+                    showToast("值已更新 (点击格式化查看)");
+                    // Restore the original element with old value for visual feedback
+                    const newElement = createValueSpan(newVal, path);
+                    input.replaceWith(newElement);
                 } else {
-                    reRenderTree();
+                    // No change, restore original element
+                    input.replaceWith(element);
                 }
             }
 
             input.onblur = commit;
             input.onkeydown = (e) => {
                 if (e.key === 'Enter') { input.blur(); }
-                if (e.key === 'Escape') { reRenderTree(); }
+                if (e.key === 'Escape') {
+                    input.replaceWith(element);
+                }
             };
 
             element.replaceWith(input);
@@ -1479,6 +1494,20 @@
             syncToInput();
             saveState();
             reRenderTree();
+        }
+
+        function setValueByPathWithoutRerender(path, value) {
+            if (path.length === 0) {
+                currentObj = value;
+            } else {
+                let ref = currentObj;
+                for (let i = 0; i < path.length - 1; i++) {
+                    ref = ref[path[i]];
+                }
+                ref[path[path.length - 1]] = value;
+            }
+            syncToInput();
+            saveState();
         }
 
         function renameKey(parentPath, oldKey, newKey) {
@@ -1520,6 +1549,46 @@
             syncToInput();
             saveState();
             reRenderTree();
+        }
+
+        function renameKeyWithoutRerender(parentPath, oldKey, newKey) {
+            let parent;
+            if (parentPath.length === 0) {
+                parent = currentObj;
+            } else {
+                parent = currentObj;
+                for (let i = 0; i < parentPath.length; i++) {
+                    parent = parent[parentPath[i]];
+                }
+            }
+
+            if (Array.isArray(parent)) return; // Should not happen for keys
+
+            // Preserve order
+            const keys = Object.keys(parent);
+            const newObj = {};
+            keys.forEach(k => {
+                if (k === oldKey) {
+                    newObj[newKey] = parent[oldKey];
+                } else {
+                    newObj[k] = parent[k];
+                }
+            });
+
+            // Replace parent content
+            if (parentPath.length === 0) {
+                currentObj = newObj;
+            } else {
+                // We need to re-assign the new object to the parent's parent
+                // But since we can't easily replace the object reference in the tree without traversing again...
+                // Simpler mutation approach: delete all keys and restore new ones
+                // This keeps the reference intact
+                keys.forEach(k => delete parent[k]);
+                Object.assign(parent, newObj);
+            }
+
+            syncToInput();
+            saveState();
         }
 
         function handleAddProperty(path, isArray) {
@@ -1571,7 +1640,15 @@
                 // If click is outside the editor container
                 if (!editorDiv.contains(e.target)) {
                     cleanup();
-                    reRenderTree(); // Cancel/Restore
+                    // Save current changes without re-rendering
+                    try {
+                        const newData = JSON.parse(textarea.value);
+                        setValueByPathWithoutRerender(path, newData);
+                        showToast("值已更新 (点击格式化查看)");
+                    } catch (err) {
+                        // If invalid JSON, just close without saving
+                    }
+                    editorDiv.replaceWith(container);
                 }
             };
 
@@ -1597,31 +1674,15 @@
             btnCancel.style.padding = '4px 12px';
             btnCancel.style.fontSize = '12px';
 
-            btnSave.onclick = () => {
-                cleanup();
-                try {
-                    const newData = JSON.parse(textarea.value);
-                    setValueByPath(path, newData); // This triggers reRenderTree
-                } catch (e) {
-                    showToast("JSON 格式错误: " + e.message);
-                    // Re-attach listener if we failed to save? 
-                    // No, usually we want to keep editing. 
-                    // But if we cleanup(), we need to re-attach or just not cleanup if invalid? 
-                    // Let's re-attach if we stay open.
-                    // Actually simplier: Don't cleanup if error.
-                    // But we called cleanup() at start.
-                    // Let's fix logic inside: only cleanup on success.
-                    document.addEventListener('click', outsideClickListener);
-                }
-            };
-
             // Refined Save Logic to handle retry
             btnSave.onclick = (e) => {
                 e.stopPropagation(); // Prevent triggering outside click immediately
                 try {
                     const newData = JSON.parse(textarea.value);
                     cleanup(); // Only cleanup on success
-                    setValueByPath(path, newData);
+                    setValueByPathWithoutRerender(path, newData);
+                    showToast("值已更新 (点击格式化查看)");
+                    editorDiv.replaceWith(container);
                 } catch (e) {
                     showToast("JSON 格式错误: " + e.message);
                     textarea.focus();
@@ -1631,7 +1692,7 @@
             btnCancel.onclick = (e) => {
                 e.stopPropagation();
                 cleanup();
-                reRenderTree(); // Restore view
+                editorDiv.replaceWith(container);
             };
 
             btnRow.appendChild(btnCancel);
