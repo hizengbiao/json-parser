@@ -1413,15 +1413,12 @@
             function commit() {
                 const newKey = input.value.trim();
                 if (newKey && newKey !== oldKey) {
-                    // Path points to the value, so the parent object is path[:-1]
                     const parentPath = path.slice(0, -1);
                     renameKeyWithoutRerender(parentPath, oldKey, newKey);
-                    showToast("键名已更新 (点击格式化查看)");
+                    showToast("键名已更新 (局部更新) ✅");
                     element.textContent = `"${newKey}"`;
-                    // Update the onclick to use the new key for next edit
+                    // Update key edit handler for the modified element
                     element.onclick = (e) => { e.stopPropagation(); handleEditKey(element, path, newKey); };
-                } else {
-                    element.textContent = `"${oldKey}"`;
                 }
                 input.replaceWith(element);
             }
@@ -1447,24 +1444,20 @@
             input.className = 'edit-input';
 
             function commit() {
-                const raw = input.value; // Don't trim automatically in case of string with spaces
+                const raw = input.value;
                 let newVal;
                 try {
-                    // Try to parse as JSON (numbers, boolean, null, quoted strings)
                     newVal = JSON.parse(raw);
                 } catch (e) {
-                    // Fallback to string
                     newVal = raw;
                 }
 
                 if (newVal !== oldVal) {
                     setValueByPathWithoutRerender(path, newVal);
-                    showToast("值已更新 (点击格式化查看)");
-                    // Restore the original element with old value for visual feedback
+                    showToast("值已更新 (局部更新) ✅");
                     const newElement = createValueSpan(newVal, path);
                     input.replaceWith(newElement);
                 } else {
-                    // No change, restore original element
                     input.replaceWith(element);
                 }
             }
@@ -1482,17 +1475,7 @@
         }
 
         function setValueByPath(path, value) {
-            if (path.length === 0) {
-                currentObj = value;
-            } else {
-                let ref = currentObj;
-                for (let i = 0; i < path.length - 1; i++) {
-                    ref = ref[path[i]];
-                }
-                ref[path[path.length - 1]] = value;
-            }
-            syncToInput();
-            saveState();
+            setValueByPathWithoutRerender(path, value);
             reRenderTree();
         }
 
@@ -1510,44 +1493,9 @@
             saveState();
         }
 
+
         function renameKey(parentPath, oldKey, newKey) {
-            let parent;
-            if (parentPath.length === 0) {
-                parent = currentObj;
-            } else {
-                parent = currentObj;
-                for (let i = 0; i < parentPath.length; i++) {
-                    parent = parent[parentPath[i]];
-                }
-            }
-
-            if (Array.isArray(parent)) return; // Should not happen for keys
-
-            // Preserve order
-            const keys = Object.keys(parent);
-            const newObj = {};
-            keys.forEach(k => {
-                if (k === oldKey) {
-                    newObj[newKey] = parent[oldKey];
-                } else {
-                    newObj[k] = parent[k];
-                }
-            });
-
-            // Replace parent content
-            if (parentPath.length === 0) {
-                currentObj = newObj;
-            } else {
-                // We need to re-assign the new object to the parent's parent
-                // But since we can't easily replace the object reference in the tree without traversing again...
-                // Simpler mutation approach: delete all keys and restore new ones
-                // This keeps the reference intact
-                keys.forEach(k => delete parent[k]);
-                Object.assign(parent, newObj);
-            }
-
-            syncToInput();
-            saveState();
+            renameKeyWithoutRerender(parentPath, oldKey, newKey);
             reRenderTree();
         }
 
@@ -1562,9 +1510,8 @@
                 }
             }
 
-            if (Array.isArray(parent)) return; // Should not happen for keys
+            if (Array.isArray(parent)) return;
 
-            // Preserve order
             const keys = Object.keys(parent);
             const newObj = {};
             keys.forEach(k => {
@@ -1575,14 +1522,9 @@
                 }
             });
 
-            // Replace parent content
             if (parentPath.length === 0) {
                 currentObj = newObj;
             } else {
-                // We need to re-assign the new object to the parent's parent
-                // But since we can't easily replace the object reference in the tree without traversing again...
-                // Simpler mutation approach: delete all keys and restore new ones
-                // This keeps the reference intact
                 keys.forEach(k => delete parent[k]);
                 Object.assign(parent, newObj);
             }
@@ -1590,6 +1532,7 @@
             syncToInput();
             saveState();
         }
+
 
         function handleAddProperty(path, isArray) {
             let target = currentObj;
@@ -1637,18 +1580,34 @@
             };
 
             const outsideClickListener = (e) => {
-                // If click is outside the editor container
                 if (!editorDiv.contains(e.target)) {
                     cleanup();
-                    // Save current changes without re-rendering
                     try {
                         const newData = JSON.parse(textarea.value);
                         setValueByPathWithoutRerender(path, newData);
-                        showToast("值已更新 (点击格式化查看)");
+                        showToast("值已更新 (未格式化预览) ✅");
+
+                        // Use a div to allow block-level multi-line display
+                        const previewEl = document.createElement('div');
+                        previewEl.className = 'string';
+                        previewEl.style.fontSpace = 'pre-wrap';
+                        previewEl.style.whiteSpace = 'pre-wrap';
+                        previewEl.style.fontStyle = 'italic';
+                        previewEl.style.opacity = '0.8';
+                        previewEl.style.padding = '4px 8px';
+                        previewEl.style.background = 'rgba(9, 105, 218, 0.03)';
+                        previewEl.style.borderRadius = '4px';
+                        previewEl.style.marginTop = '4px';
+                        previewEl.style.cursor = 'pointer';
+
+                        previewEl.textContent = textarea.value;
+                        previewEl.title = "已修改，点击此处或『格式化』同步树状结构";
+                        previewEl.onclick = () => handleFormat();
+
+                        editorDiv.replaceWith(previewEl);
                     } catch (err) {
-                        // If invalid JSON, just close without saving
+                        editorDiv.replaceWith(container);
                     }
-                    editorDiv.replaceWith(container);
                 }
             };
 
@@ -1676,13 +1635,29 @@
 
             // Refined Save Logic to handle retry
             btnSave.onclick = (e) => {
-                e.stopPropagation(); // Prevent triggering outside click immediately
+                e.stopPropagation();
                 try {
                     const newData = JSON.parse(textarea.value);
-                    cleanup(); // Only cleanup on success
+                    cleanup();
                     setValueByPathWithoutRerender(path, newData);
-                    showToast("值已更新 (点击格式化查看)");
-                    editorDiv.replaceWith(container);
+                    showToast("值已更新 (未格式化预览) ✅");
+
+                    const previewEl = document.createElement('div');
+                    previewEl.className = 'string';
+                    previewEl.style.whiteSpace = 'pre-wrap';
+                    previewEl.style.fontStyle = 'italic';
+                    previewEl.style.opacity = '0.8';
+                    previewEl.style.padding = '4px 8px';
+                    previewEl.style.background = 'rgba(9, 105, 218, 0.03)';
+                    previewEl.style.borderRadius = '4px';
+                    previewEl.style.marginTop = '4px';
+                    previewEl.style.cursor = 'pointer';
+
+                    previewEl.textContent = textarea.value;
+                    previewEl.title = "已修改，点击此处或『格式化』同步树状结构";
+                    previewEl.onclick = () => handleFormat();
+
+                    editorDiv.replaceWith(previewEl);
                 } catch (e) {
                     showToast("JSON 格式错误: " + e.message);
                     textarea.focus();
