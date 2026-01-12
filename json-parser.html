@@ -1413,9 +1413,12 @@
 
                 // 2. Use a small timeout to let the DOM layout settle after expansions
                 setTimeout(() => {
+                    // Set a scroll margin to avoid sticking to the very top edge
+                    targetNode.style.scrollMarginTop = '100px';
+
                     targetNode.scrollIntoView({
                         behavior: 'smooth',
-                        block: 'center',
+                        block: 'start',
                         inline: 'nearest'
                     });
 
