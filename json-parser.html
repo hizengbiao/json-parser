@@ -762,7 +762,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.52</span>
+            <span>V1.53</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -797,6 +797,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月13日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.53</div>
+                        <div class="changelog-desc">优化删除键值对功能：当存在折叠节点时，删除后不自动格式化，保留折叠状态。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.52</div>
                         <div class="changelog-desc">修复大文件下编辑复杂值后显示空白的 Bug：对象/数组类型显示预览提示，引导用户格式化查看。</div>
@@ -2388,21 +2392,60 @@
         function handleDelete(path) {
             if (path.length === 0) {
                 currentObj = null;
-            } else {
-                let parent = currentObj;
-                for (let i = 0; i < path.length - 1; i++) {
-                    parent = parent[path[i]];
-                }
-                const lastKey = path[path.length - 1];
-                if (Array.isArray(parent)) {
-                    parent.splice(parseInt(lastKey), 1);
-                } else {
-                    delete parent[lastKey];
+                syncToInput();
+                saveState();
+                reRenderTree();
+                return;
+            }
+
+            // Find and remove the DOM element first
+            const targetPathStr = JSON.stringify(path);
+            const nodes = document.querySelectorAll('.json-node');
+            let targetNode = null;
+            for (const node of nodes) {
+                if (node.dataset.path === targetPathStr) {
+                    targetNode = node;
+                    break;
                 }
             }
-            syncToInput();
-            saveState();
-            reRenderTree();
+
+            // Update currentObj
+            let parent = currentObj;
+            for (let i = 0; i < path.length - 1; i++) {
+                parent = parent[path[i]];
+            }
+            const lastKey = path[path.length - 1];
+            if (Array.isArray(parent)) {
+                parent.splice(parseInt(lastKey), 1);
+            } else {
+                delete parent[lastKey];
+            }
+
+            sourceDirty = true;
+
+            // Check if there are any collapsed nodes (user has folded something)
+            const hasCollapsedNodes = document.querySelector('.json-node.collapsed') !== null;
+
+            // If there are collapsed nodes, just remove the DOM element without re-rendering
+            if (hasCollapsedNodes && targetNode) {
+                targetNode.remove();
+                showToast("已删除，请手动点击『格式化』同步 ⚠️");
+                return;
+            }
+
+            // Otherwise, use smart auto-format logic
+            if (shouldAutoFormat()) {
+                syncToInput();
+                saveState();
+                reRenderTree();
+                showToast("删除成功 ✅");
+            } else {
+                // Large file: just remove DOM, don't re-render
+                if (targetNode) {
+                    targetNode.remove();
+                }
+                showToast("已删除，请手动点击『格式化』同步 ⚠️");
+            }
         }
 
         function handleFoldSubtree(container, N) {
