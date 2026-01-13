@@ -762,7 +762,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.53</span>
+            <span>V1.54</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -797,6 +797,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月13日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.54</div>
+                        <div class="changelog-desc">增强修复功能：支持修复带转义符的 JSON（如日志中的 \" 和反斜杠换行）。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.53</div>
                         <div class="changelog-desc">优化删除键值对功能：当存在折叠节点时，删除后不自动格式化，保留折叠状态。</div>
@@ -1221,7 +1225,36 @@
             let raw = inputArea.value.trim();
             if (!raw) return;
             try {
+                // Remove single-line and multi-line comments
                 raw = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+
+                // Handle escaped JSON strings (common in logs):
+                // 0. Strip outer quotes if the entire JSON is wrapped in quotes
+                if ((raw.startsWith('"') && raw.endsWith('"')) ||
+                    (raw.startsWith("'") && raw.endsWith("'"))) {
+                    raw = raw.slice(1, -1);
+                }
+
+                // 1. Remove backslash-newline continuations (line continuation)
+                raw = raw.replace(/\\\r?\n/g, "");
+
+                // 2. Check if this looks like an escaped JSON string (has \" pattern)
+                if (raw.includes('\\"')) {
+                    // Properly unescape by handling escape sequences in order
+                    // Process each escape sequence: \\ -> \, \" -> ", \n -> newline, etc.
+                    raw = raw.replace(/\\(.)/g, (match, char) => {
+                        switch (char) {
+                            case '"': return '"';
+                            case '\\': return '\\';
+                            case 'n': return '\n';
+                            case 'r': return '\r';
+                            case 't': return '\t';
+                            case '/': return '/';
+                            default: return match; // Keep unknown escapes as-is
+                        }
+                    });
+                }
+
                 const jsonpMatch = raw.match(/^\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(([\s\S]*)\)\s*;?\s*$/);
                 if (jsonpMatch && jsonpMatch[1]) raw = jsonpMatch[1];
 
