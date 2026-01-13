@@ -762,7 +762,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.54</span>
+            <span>V1.55</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -797,6 +797,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月13日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.55</div>
+                        <div class="changelog-desc">增强修复功能：支持去除 JSON 外层的引号和包裹标签（如 [LOG]...[/LOG]），以及修复带转义符的 JSON。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.54</div>
                         <div class="changelog-desc">增强修复功能：支持修复带转义符的 JSON（如日志中的 \" 和反斜杠换行）。</div>
@@ -1229,7 +1233,13 @@
                 raw = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
                 // Handle escaped JSON strings (common in logs):
-                // 0. Strip outer quotes if the entire JSON is wrapped in quotes
+                // 0a. Strip wrapper tags like [XXX]...[/XXX] or [XXX]...[XXX]
+                const tagMatch = raw.match(/^\[([^\]]+)\]([\s\S]*)\[\/?\1\]$/);
+                if (tagMatch && tagMatch[2]) {
+                    raw = tagMatch[2].trim();
+                }
+
+                // 0b. Strip outer quotes if the entire JSON is wrapped in quotes
                 if ((raw.startsWith('"') && raw.endsWith('"')) ||
                     (raw.startsWith("'") && raw.endsWith("'"))) {
                     raw = raw.slice(1, -1);
