@@ -546,6 +546,11 @@
             outline: none;
             box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2);
             box-sizing: border-box;
+            resize: none;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            line-height: inherit;
         }
 
         .subtree-editor-container {
@@ -757,7 +762,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.47</span>
+            <span>V1.48</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -792,6 +797,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月13日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.48</div>
+                        <div class="changelog-desc">编辑交互终极优化：单行内容随输入自动增长，超过一行时自动换行并转为多行布局，按 Enter 键可直接保存。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.47</div>
                         <div class="changelog-desc">多行编辑增强：对于包含换行或超长文本的键值，自动切换为多行文本框并自适应高度。</div>
@@ -1911,36 +1920,43 @@
          * 自动调整输入框宽度
          */
         function setupAutoResize(input) {
-            const isTA = input.tagName === 'TEXTAREA';
             const update = () => {
-                if (isTA) {
-                    input.style.height = 'auto';
-                    input.style.height = (input.scrollHeight + 4) + 'px';
+                // 1. Measure width
+                const temp = document.createElement('span');
+                const style = window.getComputedStyle(input);
+                temp.style.visibility = 'hidden';
+                temp.style.position = 'absolute';
+                temp.style.whiteSpace = 'pre';
+                temp.style.fontFamily = style.fontFamily;
+                temp.style.fontSize = style.fontSize;
+                temp.style.fontWeight = style.fontWeight;
+                temp.style.fontStyle = style.fontStyle;
+                temp.style.letterSpacing = style.letterSpacing;
+
+                temp.textContent = input.value || input.placeholder || ' ';
+                document.body.appendChild(temp);
+
+                const parent = input.parentElement;
+                const maxWidth = parent ? parent.clientWidth - 40 : 800;
+                const textWidth = temp.getBoundingClientRect().width + 20;
+
+                document.body.removeChild(temp);
+
+                // 2. Decide layout based on width or manual newlines
+                const hasNewLine = input.value.includes('\n');
+                if (textWidth > maxWidth || hasNewLine) {
+                    input.style.display = 'block';
+                    input.style.width = '100%';
+                    input.style.marginTop = '4px';
+                } else {
+                    input.style.display = 'inline-block';
+                    input.style.width = Math.max(100, textWidth) + 'px';
+                    input.style.marginTop = '0';
                 }
 
-                // Only measure width for single-line inputs or inline textareas
-                if (!isTA || input.style.display !== 'block') {
-                    const temp = document.createElement('span');
-                    const style = window.getComputedStyle(input);
-                    temp.style.visibility = 'hidden';
-                    temp.style.position = 'absolute';
-                    temp.style.whiteSpace = 'pre';
-                    // Robust font copying
-                    temp.style.fontFamily = style.fontFamily;
-                    temp.style.fontSize = style.fontSize;
-                    temp.style.fontWeight = style.fontWeight;
-                    temp.style.fontStyle = style.fontStyle;
-                    temp.style.letterSpacing = style.letterSpacing;
-
-                    temp.textContent = input.value || input.placeholder || ' ';
-                    document.body.appendChild(temp);
-                    // Limit width to 100% of parent minus some padding
-                    const parent = input.parentElement;
-                    const maxWidth = parent ? parent.clientWidth - 40 : 800;
-                    const targetWidth = Math.max(100, Math.min(maxWidth, temp.getBoundingClientRect().width + 20));
-                    input.style.width = targetWidth + 'px';
-                    document.body.removeChild(temp);
-                }
+                // 3. Adjust height (for textarea)
+                input.style.height = 'auto';
+                input.style.height = (input.scrollHeight) + 'px';
             };
             input.addEventListener('input', update);
             input.addEventListener('focus', update);
@@ -1950,16 +1966,10 @@
         // --- Editing Logic ---
 
         function handleEditKey(element, path, oldKey) {
-            const isMulti = oldKey.includes('\n') || oldKey.length > 50;
-            const input = document.createElement(isMulti ? 'textarea' : 'input');
-            if (!isMulti) input.type = 'text';
+            const input = document.createElement('textarea');
             input.value = oldKey;
             input.className = 'edit-input';
-            if (isMulti) {
-                input.style.width = '100%';
-                input.style.display = 'block';
-                input.style.marginTop = '4px';
-            }
+            input.rows = 1;
             setupAutoResize(input);
 
             function commit() {
@@ -1977,12 +1987,11 @@
 
             input.onblur = commit;
             input.onkeydown = (e) => {
-                if (e.key === 'Enter' && (!isMulti || e.ctrlKey)) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     input.blur();
                 }
                 if (e.key === 'Escape') {
-                    if (!isMulti) element.textContent = `"${oldKey}"`;
                     input.replaceWith(element);
                 }
             };
@@ -1993,16 +2002,10 @@
 
         function handleEditValue(element, path, oldVal) {
             const valStr = (typeof oldVal === 'string') ? oldVal : JSON.stringify(oldVal);
-            const isMulti = valStr.includes('\n') || valStr.length > 50;
-            const input = document.createElement(isMulti ? 'textarea' : 'input');
-            if (!isMulti) input.type = 'text';
+            const input = document.createElement('textarea');
             input.value = valStr;
             input.className = 'edit-input';
-            if (isMulti) {
-                input.style.width = '100%';
-                input.style.display = 'block';
-                input.style.marginTop = '4px';
-            }
+            input.rows = 1;
             setupAutoResize(input);
 
             function commit() {
@@ -2026,7 +2029,7 @@
 
             input.onblur = commit;
             input.onkeydown = (e) => {
-                if (e.key === 'Enter' && (!isMulti || e.ctrlKey)) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     input.blur();
                 }
