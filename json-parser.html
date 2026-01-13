@@ -762,7 +762,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.51</span>
+            <span>V1.52</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -797,6 +797,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月13日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.52</div>
+                        <div class="changelog-desc">修复大文件下编辑复杂值后显示空白的 Bug：对象/数组类型显示预览提示，引导用户格式化查看。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.51</div>
                         <div class="changelog-desc">完善子树编辑器智能格式化：小文件编辑后直接重新渲染，大文件显示预览并提示手动格式化。</div>
@@ -2075,14 +2079,38 @@
 
                 if (newVal !== oldVal) {
                     setValueByPathWithoutRerender(currentPath, newVal);
-                    const newElement = createValueSpan(newVal, path);
-                    input.replaceWith(newElement);
 
                     // 智能格式化
                     if (shouldAutoFormat()) {
+                        const newElement = createValueSpan(newVal, path);
+                        input.replaceWith(newElement);
                         showToast("值已更新 (局部更新) ✅");
                         setTimeout(() => reRenderTree(), 50);
                     } else {
+                        // 大文件且值是对象/数组：显示预览
+                        if (typeof newVal === 'object' && newVal !== null) {
+                            const previewEl = document.createElement('div');
+                            previewEl.className = 'string';
+                            previewEl.style.whiteSpace = 'pre-wrap';
+                            previewEl.style.fontStyle = 'italic';
+                            previewEl.style.opacity = '0.8';
+                            previewEl.style.padding = '4px 8px';
+                            previewEl.style.background = 'rgba(9, 105, 218, 0.03)';
+                            previewEl.style.borderRadius = '4px';
+                            previewEl.style.cursor = 'pointer';
+                            previewEl.style.color = '#0969da';
+
+                            const jsonStr = JSON.stringify(newVal, null, 2);
+                            const preview = jsonStr.length > 100 ? jsonStr.substring(0, 100) + '...' : jsonStr;
+                            previewEl.textContent = `${preview}\n\n☝️ 点击此处或『格式化』查看完整内容`;
+                            previewEl.title = "已修改，请手动点击『格式化』同步";
+                            previewEl.onclick = () => handleFormat();
+                            input.replaceWith(previewEl);
+                        } else {
+                            // 基本类型：正常显示
+                            const newElement = createValueSpan(newVal, path);
+                            input.replaceWith(newElement);
+                        }
                         showToast("值已更新，请手动点击『格式化』同步 ⚠️");
                     }
                 } else {
