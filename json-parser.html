@@ -573,6 +573,160 @@
             border-color: #0969da;
             box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2);
         }
+
+        /* Version Info & Modal */
+        .version-info {
+            font-size: 12px;
+            color: #6e7781;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .version-info:hover {
+            background: #eaeef2;
+            color: #0969da;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background: #fff;
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e1e4e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f6f8fa;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #24292f;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #57606a;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: 0.2s;
+        }
+
+        .close-modal:hover {
+            background-color: #f3f4f6;
+            color: #cf222e;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            color: #24292f;
+            line-height: 1.6;
+        }
+
+        .changelog-date-group {
+            margin-bottom: 30px;
+        }
+
+        .changelog-date {
+            font-weight: 600;
+            color: #24292f;
+            font-size: 16px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #0969da;
+            display: inline-block;
+        }
+
+        .changelog-entry {
+            margin-bottom: 12px;
+            font-size: 14px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .changelog-version {
+            font-weight: 700;
+            color: #0969da;
+            background: #ddf4ff;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: center;
+            margin-top: 2px;
+        }
+
+        .changelog-desc {
+            color: #444;
+            flex: 1;
+        }
     </style>
 </head>
 
@@ -600,6 +754,10 @@
             <button class="icon-btn tree-only" onclick="sortJson(true)" title="按Key升序">⬇️ 升序</button>
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
+        <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
+            <span>V1.45</span>
+            <span>ℹ️</span>
+        </div>
     </div>
 
     <div id="error-msg"></div>
@@ -621,6 +779,213 @@
 
     <div id="toast">提示信息</div>
     <div id="path-tooltip" class="path-tooltip"></div>
+
+    <!-- Changelog Modal -->
+    <div id="changelog-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🚀 版本更新说明</h3>
+                <button class="close-modal" onclick="closeChangelog()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="changelog-date-group">
+                    <div class="changelog-date">2026年1月12日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.45</div>
+                        <div class="changelog-desc">优化跳转定位逻辑：当目标父级元素在屏幕外时，自动翻页滚动至该元素可见位置。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.44</div>
+                        <div class="changelog-desc">视觉优化：悬浮窗中的父级元素路径统一使用蓝色字体标识。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.43</div>
+                        <div class="changelog-desc">路径悬浮窗交互升级：点击具体层级可跳转定位，点击“复制按钮”才复制完整路径。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.42</div>
+                        <div class="changelog-desc">交互修复：解决鼠标移动到路径悬浮窗时，悬浮窗跟随移动导致无法点击的问题。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.41</div>
+                        <div class="changelog-desc">修复使用编辑功能时的性能卡顿问题。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.40</div>
+                        <div class="changelog-desc">修复编辑保存后页面显示旧值的问题；支持原样展示未格式化的字符串内容。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.39</div>
+                        <div class="changelog-desc">性能与体验优化：编辑大文本 JSON 时，保存后不再自动全量格式化，避免卡顿。</div>
+                    </div>
+                </div>
+
+                <div class="changelog-date-group">
+                    <div class="changelog-date">2026年1月7日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.38</div>
+                        <div class="changelog-desc">优化 UI 对齐：同一层级的 Key、左括号、右括号保持垂直对齐。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.37</div>
+                        <div class="changelog-desc">新增“粘贴并格式化”快捷功能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.36</div>
+                        <div class="changelog-desc">更新项目描述文档。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.35</div>
+                        <div class="changelog-desc">新增 JSON 与 Java Bean 互转功能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.34</div>
+                        <div class="changelog-desc">实现 JSON 子树折叠功能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.33</div>
+                        <div class="changelog-desc">优化路径显示格式（数组显示为 [index]）并支持复制完整路径。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.32</div>
+                        <div class="changelog-desc">新增 Key 悬浮提示：鼠标悬停在 Key 上时显示完整的父级路径。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.31</div>
+                        <div class="changelog-desc">编辑模式增加“撤销”和“重做”功能支持。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.30</div>
+                        <div class="changelog-desc">修复编辑框定位问题：打开编辑框时锚定显示最前端内容。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.29</div>
+                        <div class="changelog-desc">新增“删除键值对”功能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.28</div>
+                        <div class="changelog-desc">新增“复制键（Key）”功能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.27</div>
+                        <div class="changelog-desc">调整功能按钮顺序为：“复制值”、“复制键值对”、“新增属性”、“编辑”。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.26</div>
+                        <div class="changelog-desc">调整编辑框“取消”和“保存”按钮位置至左下角，防止溢出屏幕。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.25</div>
+                        <div class="changelog-desc">优化编辑体验：编辑框高度根据内容高度自动适应，解决内容过多时编辑框过小的问题。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.24</div>
+                        <div class="changelog-desc">交互优化：点击编辑框外部空白区域可直接取消编辑状态。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.23</div>
+                        <div class="changelog-desc">支持对 JSON 层级结构的编辑操作。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.22</div>
+                        <div class="changelog-desc">优化“复制值”功能：当值为字符串时，复制内容不再包含外部引号。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.21</div>
+                        <div class="changelog-desc">新增“新增属性”功能：支持在 List/Map 中插入新元素（自动生成 key 名）。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.20</div>
+                        <div class="changelog-desc">格式化后的视图页面支持直接编辑内容。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.19</div>
+                        <div class="changelog-desc">优化行号的 UI 展示样式。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.18</div>
+                        <div class="changelog-desc">移除视觉干扰的竖线样式。</div>
+                    </div>
+                </div>
+
+                <div class="changelog-date-group">
+                    <div class="changelog-date">2026年1月6日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.17</div>
+                        <div class="changelog-desc">优化层级高亮逻辑：仅在鼠标悬停时高亮当前级及其父级，子级背景色保持一致。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.16</div>
+                        <div class="changelog-desc">恢复行号显示功能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.15</div>
+                        <div class="changelog-desc">优化“修复 JSON”功能的逻辑。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.14</div>
+                        <div class="changelog-desc">修复“复制键值对”功能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.13</div>
+                        <div class="changelog-desc">调整并减少缩进宽度，节省空间。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.12</div>
+                        <div class="changelog-desc">优化不同层级的背景色显示效果。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.11</div>
+                        <div class="changelog-desc">为不同的 JSON 层级添加区分背景色。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.10</div>
+                        <div class="changelog-desc">修复操作按钮位置异常跳动的问题。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.09</div>
+                        <div class="changelog-desc">修正“格式化”按钮的背景色。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.08</div>
+                        <div class="changelog-desc">移除“原序”功能；修复“压缩”功能的顺序逻辑错误。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.07</div>
+                        <div class="changelog-desc">移除“原码模式”和“视图模式”切换功能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.06</div>
+                        <div class="changelog-desc">合并原有窗口布局。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.05</div>
+                        <div class="changelog-desc">修复“还原”图标显示异常的问题。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.04</div>
+                        <div class="changelog-desc">窗口支持最大化，并支持拖动调整输入/输出窗口的比例。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.03</div>
+                        <div class="changelog-desc">修复内容过长时的页面展示溢出问题。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.02</div>
+                        <div class="changelog-desc">修复换行功能的 Bug。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.01</div>
+                        <div class="changelog-desc">修复缩进和换行显示异常；将行号固定显示在最左侧。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.00</div>
+                        <div class="changelog-desc">优化代码缩进逻辑。</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         const inputArea = document.getElementById('json-input');
@@ -707,6 +1072,23 @@
                 if (isTreeMode) parseAndRender();
             }
         }
+
+        // --- Modal Control ---
+        function showChangelog() {
+            document.getElementById('changelog-modal').style.display = 'flex';
+        }
+
+        function closeChangelog() {
+            document.getElementById('changelog-modal').style.display = 'none';
+        }
+
+        // Close modal on outside click
+        window.onclick = function (event) {
+            const modal = document.getElementById('changelog-modal');
+            if (event.target == modal) {
+                closeChangelog();
+            }
+        };
 
         // --- View Switching Logic ---
         function switchMode(mode) {
