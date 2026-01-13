@@ -762,7 +762,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.50</span>
+            <span>V1.51</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -797,6 +797,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月13日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.51</div>
+                        <div class="changelog-desc">完善子树编辑器智能格式化：小文件编辑后直接重新渲染，大文件显示预览并提示手动格式化。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.50</div>
                         <div class="changelog-desc">智能自动格式化：小于 1000 行的 JSON 编辑后自动格式化，大文件需手动格式化，提升性能。</div>
@@ -2211,6 +2215,15 @@
                         const newData = JSON.parse(textarea.value);
                         setValueByPathWithoutRerender(path, newData);
 
+                        // 智能格式化：小文件直接渲染
+                        if (shouldAutoFormat()) {
+                            showToast("值已更新 (自动同步) ✅");
+                            editorDiv.replaceWith(container);
+                            setTimeout(() => reRenderTree(), 50);
+                            return;
+                        }
+
+                        // 大文件：显示预览
                         const previewEl = document.createElement('div');
                         previewEl.className = 'string';
                         previewEl.style.fontSpace = 'pre-wrap';
@@ -2278,6 +2291,15 @@
                     cleanup();
                     setValueByPathWithoutRerender(path, newData);
 
+                    // 智能格式化：小文件直接渲染
+                    if (shouldAutoFormat()) {
+                        showToast("值已更新 (自动同步) ✅");
+                        editorDiv.replaceWith(container);
+                        setTimeout(() => reRenderTree(), 50);
+                        return;
+                    }
+
+                    // 大文件：显示预览
                     const previewEl = document.createElement('div');
                     previewEl.className = 'string';
                     previewEl.style.whiteSpace = 'pre-wrap';
