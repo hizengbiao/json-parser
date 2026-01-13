@@ -541,9 +541,11 @@
             margin: 0;
             color: inherit;
             background: #fff;
-            min-width: 60px;
+            min-width: 100px;
+            max-width: 100%;
             outline: none;
             box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2);
+            box-sizing: border-box;
         }
 
         .subtree-editor-container {
@@ -755,7 +757,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.45</span>
+            <span>V1.47</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -788,6 +790,18 @@
                 <button class="close-modal" onclick="closeChangelog()">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="changelog-date-group">
+                    <div class="changelog-date">2026年1月13日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.47</div>
+                        <div class="changelog-desc">多行编辑增强：对于包含换行或超长文本的键值，自动切换为多行文本框并自适应高度。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.46</div>
+                        <div class="changelog-desc">编辑交互优化：编辑键值时，输入框宽度随内容自动伸缩，解决长文本显示不全的问题。</div>
+                    </div>
+                </div>
+
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月12日</div>
                     <div class="changelog-entry">
@@ -1893,13 +1907,60 @@
             setTimeout(() => t.className = t.className.replace("show", ""), 2000);
         }
 
+        /**
+         * 自动调整输入框宽度
+         */
+        function setupAutoResize(input) {
+            const isTA = input.tagName === 'TEXTAREA';
+            const update = () => {
+                if (isTA) {
+                    input.style.height = 'auto';
+                    input.style.height = (input.scrollHeight + 4) + 'px';
+                }
+
+                // Only measure width for single-line inputs or inline textareas
+                if (!isTA || input.style.display !== 'block') {
+                    const temp = document.createElement('span');
+                    const style = window.getComputedStyle(input);
+                    temp.style.visibility = 'hidden';
+                    temp.style.position = 'absolute';
+                    temp.style.whiteSpace = 'pre';
+                    // Robust font copying
+                    temp.style.fontFamily = style.fontFamily;
+                    temp.style.fontSize = style.fontSize;
+                    temp.style.fontWeight = style.fontWeight;
+                    temp.style.fontStyle = style.fontStyle;
+                    temp.style.letterSpacing = style.letterSpacing;
+
+                    temp.textContent = input.value || input.placeholder || ' ';
+                    document.body.appendChild(temp);
+                    // Limit width to 100% of parent minus some padding
+                    const parent = input.parentElement;
+                    const maxWidth = parent ? parent.clientWidth - 40 : 800;
+                    const targetWidth = Math.max(100, Math.min(maxWidth, temp.getBoundingClientRect().width + 20));
+                    input.style.width = targetWidth + 'px';
+                    document.body.removeChild(temp);
+                }
+            };
+            input.addEventListener('input', update);
+            input.addEventListener('focus', update);
+            update();
+        }
+
         // --- Editing Logic ---
 
         function handleEditKey(element, path, oldKey) {
-            const input = document.createElement('input');
-            input.type = 'text';
+            const isMulti = oldKey.includes('\n') || oldKey.length > 50;
+            const input = document.createElement(isMulti ? 'textarea' : 'input');
+            if (!isMulti) input.type = 'text';
             input.value = oldKey;
             input.className = 'edit-input';
+            if (isMulti) {
+                input.style.width = '100%';
+                input.style.display = 'block';
+                input.style.marginTop = '4px';
+            }
+            setupAutoResize(input);
 
             function commit() {
                 const newKey = input.value.trim();
@@ -1916,9 +1977,12 @@
 
             input.onblur = commit;
             input.onkeydown = (e) => {
-                if (e.key === 'Enter') { input.blur(); }
+                if (e.key === 'Enter' && (!isMulti || e.ctrlKey)) {
+                    e.preventDefault();
+                    input.blur();
+                }
                 if (e.key === 'Escape') {
-                    element.textContent = `"${oldKey}"`;
+                    if (!isMulti) element.textContent = `"${oldKey}"`;
                     input.replaceWith(element);
                 }
             };
@@ -1928,11 +1992,18 @@
         }
 
         function handleEditValue(element, path, oldVal) {
-            const input = document.createElement('input');
-            input.type = 'text';
-            // Show string without quotes for editing convenience, unless it's complex
-            input.value = (typeof oldVal === 'string') ? oldVal : JSON.stringify(oldVal);
+            const valStr = (typeof oldVal === 'string') ? oldVal : JSON.stringify(oldVal);
+            const isMulti = valStr.includes('\n') || valStr.length > 50;
+            const input = document.createElement(isMulti ? 'textarea' : 'input');
+            if (!isMulti) input.type = 'text';
+            input.value = valStr;
             input.className = 'edit-input';
+            if (isMulti) {
+                input.style.width = '100%';
+                input.style.display = 'block';
+                input.style.marginTop = '4px';
+            }
+            setupAutoResize(input);
 
             function commit() {
                 const raw = input.value;
@@ -1955,7 +2026,10 @@
 
             input.onblur = commit;
             input.onkeydown = (e) => {
-                if (e.key === 'Enter') { input.blur(); }
+                if (e.key === 'Enter' && (!isMulti || e.ctrlKey)) {
+                    e.preventDefault();
+                    input.blur();
+                }
                 if (e.key === 'Escape') {
                     input.replaceWith(element);
                 }
