@@ -762,7 +762,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.48</span>
+            <span>V1.50</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -797,6 +797,14 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月13日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.50</div>
+                        <div class="changelog-desc">智能自动格式化：小于 1000 行的 JSON 编辑后自动格式化，大文件需手动格式化，提升性能。</div>
+                    </div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.49</div>
+                        <div class="changelog-desc">修复同步编辑键值 Bug：提交时动态获取最新路径，重命名键后自动同步子树 DOM 路径，彻底解决数据重复问题。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.48</div>
                         <div class="changelog-desc">编辑交互终极优化：单行内容随输入自动增长，超过一行时自动换行并转为多行布局，按 Enter 键可直接保存。</div>
@@ -1963,6 +1971,30 @@
             update();
         }
 
+        /**
+         * 递归更新子树路径（键重命名后调用）
+         */
+        function updateDomPaths(node, oldPath, newPath) {
+            node.dataset.path = JSON.stringify(newPath);
+            const children = node.querySelectorAll('.json-node');
+            children.forEach(child => {
+                const childPath = JSON.parse(child.dataset.path);
+                // 替换路径前缀
+                const newChildPath = [...newPath, ...childPath.slice(oldPath.length)];
+                child.dataset.path = JSON.stringify(newChildPath);
+            });
+        }
+
+        /**
+         * 判断是否应该自动格式化（小文件自动，大文件手动）
+         */
+        function shouldAutoFormat() {
+            if (!currentObj) return true;
+            const jsonStr = JSON.stringify(currentObj, null, 4);
+            const lineCount = jsonStr.split('\n').length;
+            return lineCount < 1000;
+        }
+
         // --- Editing Logic ---
 
         function handleEditKey(element, path, oldKey) {
@@ -1973,14 +2005,30 @@
             setupAutoResize(input);
 
             function commit() {
+                // 动态获取最新路径
+                const node = element.closest('.json-node');
+                const currentPath = node ? JSON.parse(node.dataset.path) : path;
+
                 const newKey = input.value.trim();
                 if (newKey && newKey !== oldKey) {
-                    const parentPath = path.slice(0, -1);
+                    const parentPath = currentPath.slice(0, -1);
                     renameKeyWithoutRerender(parentPath, oldKey, newKey);
+
+                    // 同步更新 DOM 路径（关键！）
+                    const newPath = [...parentPath, newKey];
+                    if (node) {
+                        updateDomPaths(node, currentPath, newPath);
+                    }
+
                     showToast("键名已更新 (局部更新) ✅");
                     element.textContent = `"${newKey}"`;
                     // Update key edit handler for the modified element
                     element.onclick = (e) => { e.stopPropagation(); handleEditKey(element, path, newKey); };
+
+                    // 智能格式化：小文件自动刷新
+                    if (shouldAutoFormat()) {
+                        setTimeout(() => reRenderTree(), 50);
+                    }
                 }
                 input.replaceWith(element);
             }
@@ -2009,6 +2057,10 @@
             setupAutoResize(input);
 
             function commit() {
+                // 动态获取最新路径（防止键已被修改）
+                const node = element.closest('.json-node');
+                const currentPath = node ? JSON.parse(node.dataset.path) : path;
+
                 const raw = input.value;
                 let newVal;
                 try {
@@ -2018,10 +2070,17 @@
                 }
 
                 if (newVal !== oldVal) {
-                    setValueByPathWithoutRerender(path, newVal);
-                    showToast("值已更新 (局部更新) ✅");
+                    setValueByPathWithoutRerender(currentPath, newVal);
                     const newElement = createValueSpan(newVal, path);
                     input.replaceWith(newElement);
+
+                    // 智能格式化
+                    if (shouldAutoFormat()) {
+                        showToast("值已更新 (局部更新) ✅");
+                        setTimeout(() => reRenderTree(), 50);
+                    } else {
+                        showToast("值已更新，请手动点击『格式化』同步 ⚠️");
+                    }
                 } else {
                     input.replaceWith(element);
                 }
@@ -2151,9 +2210,7 @@
                     try {
                         const newData = JSON.parse(textarea.value);
                         setValueByPathWithoutRerender(path, newData);
-                        showToast("值已更新 (延迟同步) ✅");
 
-                        // Use a div to allow block-level multi-line display
                         const previewEl = document.createElement('div');
                         previewEl.className = 'string';
                         previewEl.style.fontSpace = 'pre-wrap';
@@ -2166,7 +2223,6 @@
                         previewEl.style.marginTop = '4px';
                         previewEl.style.cursor = 'pointer';
 
-                        // Performance protection: if the edited content is extremely large, limit the preview
                         const val = textarea.value;
                         if (val.length > 50000) {
                             previewEl.textContent = val.substring(0, 50000) + "\n... (内容过多，已截断预览) ...";
@@ -2174,8 +2230,16 @@
                             previewEl.textContent = val;
                         }
 
-                        previewEl.title = "内容已更新，点击此处或『格式化』同步";
-                        previewEl.onclick = () => handleFormat();
+                        // 智能格式化提示
+                        if (shouldAutoFormat()) {
+                            showToast("值已更新 (延迟同步) ✅");
+                            previewEl.title = "内容已更新，点击此处或『格式化』同步";
+                            previewEl.onclick = () => handleFormat();
+                        } else {
+                            showToast("值已更新，请手动点击『格式化』同步 ⚠️");
+                            previewEl.title = "已修改，请手动点击『格式化』同步";
+                            previewEl.onclick = () => handleFormat();
+                        }
 
                         editorDiv.replaceWith(previewEl);
                     } catch (err) {
@@ -2213,7 +2277,6 @@
                     const newData = JSON.parse(textarea.value);
                     cleanup();
                     setValueByPathWithoutRerender(path, newData);
-                    showToast("值已更新 (延迟同步) ✅");
 
                     const previewEl = document.createElement('div');
                     previewEl.className = 'string';
@@ -2233,7 +2296,14 @@
                         previewEl.textContent = val;
                     }
 
-                    previewEl.title = "已修改，点击此处或『格式化』同步";
+                    // 智能格式化提示
+                    if (shouldAutoFormat()) {
+                        showToast("值已更新 (延迟同步) ✅");
+                        previewEl.title = "已修改，点击此处或『格式化』同步";
+                    } else {
+                        showToast("值已更新，请手动点击『格式化』同步 ⚠️");
+                        previewEl.title = "已修改，请手动点击『格式化』同步";
+                    }
                     previewEl.onclick = () => handleFormat();
 
                     editorDiv.replaceWith(previewEl);
