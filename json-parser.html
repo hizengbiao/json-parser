@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.57</span>
+            <span>V1.58</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月14日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.58</div>
+                        <div class="changelog-desc">增强修复功能：支持去除 [[xxx]] 双括号标签、末尾的逗号/句号、以及外层引号，处理复杂日志格式更方便。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.57</div>
                         <div class="changelog-desc">扩展括号匹配高亮至源码编辑模式：点击顶部“编辑”按钮进入源码编辑时，同样支持点击括号高亮匹配的对应括号。</div>
@@ -1271,18 +1275,40 @@
                 // Remove single-line and multi-line comments
                 raw = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
-                // Handle escaped JSON strings (common in logs):
-                // 0a. Strip wrapper tags like [XXX]...[/XXX] or [XXX]...[XXX]
-                const tagMatch = raw.match(/^\[([^\]]+)\]([\s\S]*)\[\/?\1\]$/);
-                if (tagMatch && tagMatch[2]) {
-                    raw = tagMatch[2].trim();
-                }
+                // 0. Remove trailing comma or period (common copy-paste artifacts)
+                raw = raw.replace(/[,，.。]+\s*$/, "");
 
-                // 0b. Strip outer quotes if the entire JSON is wrapped in quotes
+                // 0a. Strip outer quotes first if the entire content is wrapped
                 if ((raw.startsWith('"') && raw.endsWith('"')) ||
                     (raw.startsWith("'") && raw.endsWith("'"))) {
                     raw = raw.slice(1, -1);
                 }
+
+                // 0b. Strip double-bracket tags like [[xxx]] at start and end
+                // Pattern: [[tag]]content[[tag]] or [[tag]]content[[/tag]]
+                const doubleBracketMatch = raw.match(/^\[\[([^\]]+)\]\]([\s\S]*)\[\[\/?[^\]]+\]\]$/);
+                if (doubleBracketMatch && doubleBracketMatch[2]) {
+                    raw = doubleBracketMatch[2].trim();
+                }
+                // Also handle case where [[tag]] appears only at start or only at end
+                raw = raw.replace(/^\[\[[^\]]+\]\]\s*/, ""); // Remove [[xxx]] at start
+                raw = raw.replace(/\s*\[\[\/?[^\]]+\]\]$/, ""); // Remove [[xxx]] or [[/xxx]] at end
+
+                // 0c. Strip wrapper tags like [XXX]...[/XXX] or [XXX]...[XXX] (single bracket)
+                const tagMatch = raw.match(/^\[([^\]]+)\]([\s\S]*)\[\/?[^\]]+\]$/);
+                if (tagMatch && tagMatch[2]) {
+                    raw = tagMatch[2].trim();
+                }
+
+                // 0d. Check again for outer quotes after tag removal
+                raw = raw.trim();
+                if ((raw.startsWith('"') && raw.endsWith('"')) ||
+                    (raw.startsWith("'") && raw.endsWith("'"))) {
+                    raw = raw.slice(1, -1);
+                }
+
+                // 0e. Remove trailing comma or period again after stripping
+                raw = raw.replace(/[,，.。]+\s*$/, "");
 
                 // 1. Remove backslash-newline continuations (line continuation)
                 raw = raw.replace(/\\\r?\n/g, "");
