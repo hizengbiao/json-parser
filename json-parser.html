@@ -581,6 +581,32 @@
             box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2);
         }
 
+        /* Bracket Matching Highlight */
+        .bracket-highlight-overlay {
+            position: absolute;
+            background: rgba(255, 100, 0, 0.7);
+            border: 2px solid #ff4500;
+            border-radius: 3px;
+            pointer-events: none;
+            z-index: 10;
+            animation: bracketPulse 0.4s ease-out;
+            box-shadow: 0 0 8px rgba(255, 69, 0, 0.6);
+        }
+
+        @keyframes bracketPulse {
+            0% {
+                transform: scale(1.8);
+                opacity: 0.2;
+                box-shadow: 0 0 20px rgba(255, 69, 0, 0.8);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+                box-shadow: 0 0 8px rgba(255, 69, 0, 0.6);
+            }
+        }
+
         /* Version Info & Modal */
         .version-info {
             font-size: 12px;
@@ -762,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.55</span>
+            <span>V1.56</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -795,6 +821,15 @@
                 <button class="close-modal" onclick="closeChangelog()">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="changelog-date-group">
+                    <div class="changelog-date">2026年1月14日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.56</div>
+                        <div class="changelog-desc">编辑模式括号匹配高亮：点击左括号时高亮对应的右括号，点击右括号时高亮对应的左括号，支持 ()、[]、{}
+                            三种括号，带醒目的橙红色脉冲动画效果。</div>
+                    </div>
+                </div>
+
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月13日</div>
                     <div class="changelog-entry">
@@ -2027,6 +2062,259 @@
         }
 
         /**
+         * 括号匹配高亮功能
+         * 当光标在右括号时，高亮对应的左括号
+         */
+        function setupBracketMatching(textarea) {
+            const bracketPairs = {
+                ')': '(',
+                ']': '[',
+                '}': '{'
+            };
+            const openingBrackets = new Set(['(', '[', '{']);
+            const closingBrackets = new Set([')', ']', '}']);
+
+            let highlightOverlay = null;
+
+            function removeHighlight() {
+                if (highlightOverlay) {
+                    highlightOverlay.remove();
+                    highlightOverlay = null;
+                }
+            }
+
+            function findMatchingOpenBracket(text, closeBracketPos) {
+                const closeBracket = text[closeBracketPos];
+                const openBracket = bracketPairs[closeBracket];
+                if (!openBracket) return -1;
+
+                let depth = 1;
+                let inString = false;
+                let stringChar = null;
+
+                // Scan backwards from the position before the close bracket
+                for (let i = closeBracketPos - 1; i >= 0; i--) {
+                    const char = text[i];
+                    const prevChar = i > 0 ? text[i - 1] : '';
+
+                    // Handle string boundaries (skip escaped quotes)
+                    if ((char === '"' || char === "'") && prevChar !== '\\') {
+                        if (inString && char === stringChar) {
+                            inString = false;
+                            stringChar = null;
+                        } else if (!inString) {
+                            inString = true;
+                            stringChar = char;
+                        }
+                        continue;
+                    }
+
+                    // Skip characters inside strings
+                    if (inString) continue;
+
+                    if (char === closeBracket) {
+                        depth++;
+                    } else if (char === openBracket) {
+                        depth--;
+                        if (depth === 0) {
+                            return i;
+                        }
+                    }
+                }
+                return -1; // No match found
+            }
+
+            function findMatchingCloseBracket(text, openBracketPos) {
+                const openBracket = text[openBracketPos];
+                const reversePairs = { '(': ')', '[': ']', '{': '}' };
+                const closeBracket = reversePairs[openBracket];
+                if (!closeBracket) return -1;
+
+                let depth = 1;
+                let inString = false;
+                let stringChar = null;
+
+                // Scan forwards from the position after the open bracket
+                for (let i = openBracketPos + 1; i < text.length; i++) {
+                    const char = text[i];
+                    const prevChar = i > 0 ? text[i - 1] : '';
+
+                    // Handle string boundaries (skip escaped quotes)
+                    if ((char === '"' || char === "'") && prevChar !== '\\') {
+                        if (inString && char === stringChar) {
+                            inString = false;
+                            stringChar = null;
+                        } else if (!inString) {
+                            inString = true;
+                            stringChar = char;
+                        }
+                        continue;
+                    }
+
+                    // Skip characters inside strings
+                    if (inString) continue;
+
+                    if (char === openBracket) {
+                        depth++;
+                    } else if (char === closeBracket) {
+                        depth--;
+                        if (depth === 0) {
+                            return i;
+                        }
+                    }
+                }
+                return -1; // No match found
+            }
+
+            function getTextPosition(textarea, charIndex) {
+                // Create a hidden div to measure text positions
+                const fullText = textarea.value;
+
+                const mirror = document.createElement('div');
+                const computedStyle = window.getComputedStyle(textarea);
+
+                // Copy styles
+                mirror.style.position = 'absolute';
+                mirror.style.visibility = 'hidden';
+                mirror.style.whiteSpace = 'pre-wrap';
+                mirror.style.wordWrap = 'break-word';
+                mirror.style.fontFamily = computedStyle.fontFamily;
+                mirror.style.fontSize = computedStyle.fontSize;
+                mirror.style.lineHeight = computedStyle.lineHeight;
+                mirror.style.padding = computedStyle.padding;
+                mirror.style.width = textarea.clientWidth + 'px';
+                mirror.style.boxSizing = 'border-box';
+                mirror.style.left = '0';
+                mirror.style.top = '0';
+
+                // Build content with marker span wrapping the target character
+                const beforeText = fullText.substring(0, charIndex);
+                const targetChar = fullText[charIndex] || '';
+                const afterText = fullText.substring(charIndex + 1);
+
+                // Create text nodes and marker span
+                const beforeNode = document.createTextNode(beforeText);
+                const marker = document.createElement('span');
+                marker.textContent = targetChar;
+                marker.style.backgroundColor = 'transparent'; // Just for measurement
+                const afterNode = document.createTextNode(afterText);
+
+                mirror.appendChild(beforeNode);
+                mirror.appendChild(marker);
+                mirror.appendChild(afterNode);
+
+                document.body.appendChild(mirror);
+
+                const markerRect = marker.getBoundingClientRect();
+                const mirrorRect = mirror.getBoundingClientRect();
+
+                const position = {
+                    left: markerRect.left - mirrorRect.left,
+                    top: markerRect.top - mirrorRect.top,
+                    width: markerRect.width,
+                    height: markerRect.height
+                };
+
+                document.body.removeChild(mirror);
+                return position;
+            }
+
+
+            function highlightBracket(charIndex) {
+                removeHighlight();
+
+                const container = textarea.parentElement;
+                if (!container) return;
+
+                // Ensure container has relative positioning for overlay
+                if (getComputedStyle(container).position === 'static') {
+                    container.style.position = 'relative';
+                }
+
+                const position = getTextPosition(textarea, charIndex);
+
+                // Account for textarea scroll
+                const textareaRect = textarea.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+
+                highlightOverlay = document.createElement('div');
+                highlightOverlay.className = 'bracket-highlight-overlay';
+                // position.left/top already includes padding from the mirror measurement
+                highlightOverlay.style.left = (textarea.offsetLeft + position.left - textarea.scrollLeft) + 'px';
+                highlightOverlay.style.top = (textarea.offsetTop + position.top - textarea.scrollTop) + 'px';
+                highlightOverlay.style.width = Math.max(position.width, 8) + 'px'; // Min width for visibility
+                highlightOverlay.style.height = position.height + 'px';
+
+                container.appendChild(highlightOverlay);
+
+                // Auto-remove after animation
+                setTimeout(() => {
+                    removeHighlight();
+                }, 1500);
+            }
+
+            function checkBracketMatch() {
+                const pos = textarea.selectionStart;
+                const text = textarea.value;
+
+                // Check character before cursor
+                if (pos > 0) {
+                    const charBeforeCursor = text[pos - 1];
+                    // Closing bracket -> highlight opening bracket
+                    if (closingBrackets.has(charBeforeCursor)) {
+                        const matchPos = findMatchingOpenBracket(text, pos - 1);
+                        if (matchPos >= 0) {
+                            highlightBracket(matchPos);
+                            return;
+                        }
+                    }
+                    // Opening bracket -> highlight closing bracket
+                    if (openingBrackets.has(charBeforeCursor)) {
+                        const matchPos = findMatchingCloseBracket(text, pos - 1);
+                        if (matchPos >= 0) {
+                            highlightBracket(matchPos);
+                            return;
+                        }
+                    }
+                }
+
+                // Check character at cursor position
+                if (pos < text.length) {
+                    const charAtCursor = text[pos];
+                    // Closing bracket -> highlight opening bracket
+                    if (closingBrackets.has(charAtCursor)) {
+                        const matchPos = findMatchingOpenBracket(text, pos);
+                        if (matchPos >= 0) {
+                            highlightBracket(matchPos);
+                            return;
+                        }
+                    }
+                    // Opening bracket -> highlight closing bracket
+                    if (openingBrackets.has(charAtCursor)) {
+                        const matchPos = findMatchingCloseBracket(text, pos);
+                        if (matchPos >= 0) {
+                            highlightBracket(matchPos);
+                            return;
+                        }
+                    }
+                }
+
+                removeHighlight();
+            }
+
+            // Listen for click and keyboard navigation
+            textarea.addEventListener('click', checkBracketMatch);
+            textarea.addEventListener('keyup', (e) => {
+                // Only check on navigation keys or after typing brackets
+                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', '(', '[', '{', ')', ']', '}'].includes(e.key)) {
+                    checkBracketMatch();
+                }
+            });
+            textarea.addEventListener('blur', removeHighlight);
+            textarea.addEventListener('scroll', removeHighlight);
+        }
+
+        /**
          * 递归更新子树路径（键重命名后调用）
          */
         function updateDomPaths(node, oldPath, newPath) {
@@ -2058,6 +2346,7 @@
             input.className = 'edit-input';
             input.rows = 1;
             setupAutoResize(input);
+            setupBracketMatching(input);
 
             function commit() {
                 // 动态获取最新路径
@@ -2110,6 +2399,7 @@
             input.className = 'edit-input';
             input.rows = 1;
             setupAutoResize(input);
+            setupBracketMatching(input);
 
             function commit() {
                 // 动态获取最新路径（防止键已被修改）
@@ -2277,6 +2567,9 @@
             const targetHeight = Math.max(minHeight, (lineCount * lineHeight) + padding);
             textarea.style.height = targetHeight + 'px';
             textarea.style.lineHeight = '1.5';
+
+            // Enable bracket matching highlight
+            setupBracketMatching(textarea);
 
             // Cleanup helper to remove event listener
             const cleanup = () => {
