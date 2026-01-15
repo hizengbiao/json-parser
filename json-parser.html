@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.60</span>
+            <span>V1.61</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月16日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.61</div>
+                        <div class="changelog-desc">修复增强：自动在行末添加缺失的逗号（支持每行一个键值对但用换行分隔的格式）。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.60</div>
                         <div class="changelog-desc">修复增强：自动为未加引号的 Key 和 Value 添加引号（如 `{name: 张三}` 自动变成 `{"name":
@@ -1346,7 +1350,10 @@
                 const jsonpMatch = raw.match(/^\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(([\s\S]*)\)\s*;?\s*$/);
                 if (jsonpMatch && jsonpMatch[1]) raw = jsonpMatch[1];
 
-                // 3. Add quotes to unquoted keys and string values (JavaScript object literal -> JSON)
+                // 3. Add missing commas between key-value pairs (when using newlines instead of commas)
+                raw = addMissingCommas(raw);
+
+                // 4. Add quotes to unquoted keys and string values (JavaScript object literal -> JSON)
                 raw = addQuotesToUnquotedStrings(raw);
 
                 let obj;
@@ -1378,6 +1385,75 @@
             } catch (e) {
                 showError({ message: "修复失败: " + e.message });
             }
+        }
+
+        /**
+         * Add missing commas between key-value pairs when newlines are used instead of commas
+         * Handles patterns like:
+         * {
+         *   name: value
+         *   other: value2
+         * }
+         * becomes:
+         * {
+         *   name: value,
+         *   other: value2
+         * }
+         */
+        function addMissingCommas(raw) {
+            const lines = raw.split('\n');
+            const result = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                const trimmedLine = line.trim();
+
+                // Skip empty lines or lines that are just brackets
+                if (!trimmedLine || /^[{}\[\]]+$/.test(trimmedLine)) {
+                    result.push(line);
+                    continue;
+                }
+
+                // Check if this line ends with a value (not a comma, not an opening bracket)
+                // and the next non-empty line starts with a key
+                const endsWithComma = trimmedLine.endsWith(',');
+                const endsWithOpenBracket = trimmedLine.endsWith('{') || trimmedLine.endsWith('[');
+                const endsWithCloseBracket = trimmedLine.endsWith('}') || trimmedLine.endsWith(']');
+
+                // Look ahead to find the next non-empty line
+                let nextNonEmptyLine = '';
+                for (let j = i + 1; j < lines.length; j++) {
+                    const nextTrimmed = lines[j].trim();
+                    if (nextTrimmed) {
+                        nextNonEmptyLine = nextTrimmed;
+                        break;
+                    }
+                }
+
+                // Check if next line looks like a key (starts with quote, letter, @, or -)
+                const nextLineStartsWithKey = /^["'@a-zA-Z_\u4e00-\u9fff]/.test(nextNonEmptyLine) ||
+                    /^[a-zA-Z_\-@]/.test(nextNonEmptyLine);
+                const nextLineIsCloseBracket = /^[}\]]/.test(nextNonEmptyLine);
+
+                // If this line has a value, doesn't end with comma, and next line starts a new key
+                // then we need to add a comma
+                if (!endsWithComma && !endsWithOpenBracket && !endsWithCloseBracket &&
+                    nextLineStartsWithKey && !nextLineIsCloseBracket &&
+                    trimmedLine.includes(':')) {
+                    // Add comma at the end of this line
+                    line = line.trimEnd() + ',';
+                }
+
+                // Also handle closing brackets that need commas
+                // e.g., } followed by another key on the next line
+                if (endsWithCloseBracket && !endsWithComma && nextLineStartsWithKey && !nextLineIsCloseBracket) {
+                    line = line.trimEnd() + ',';
+                }
+
+                result.push(line);
+            }
+
+            return result.join('\n');
         }
 
         /**
