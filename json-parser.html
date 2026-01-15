@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.58</span>
+            <span>V1.59</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -821,6 +821,14 @@
                 <button class="close-modal" onclick="closeChangelog()">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="changelog-date-group">
+                    <div class="changelog-date">2026年1月16日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.59</div>
+                        <div class="changelog-desc">智能截断修复：支持自动补全不完整的 JSON（如被截断的长文本），自动删除不完整的键值对、清理多余逗号、补全缺失的括号。</div>
+                    </div>
+                </div>
+
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月14日</div>
                     <div class="changelog-entry">
@@ -1343,7 +1351,14 @@
                         const fn = new Function("return {" + raw + "}");
                         obj = fn();
                     } catch (secondErr) {
-                        throw firstErr; // Throw validation error from first attempt (or generic)
+                        // Try to fix truncated JSON before giving up
+                        try {
+                            raw = fixTruncatedJson(raw);
+                            const fn = new Function("return " + raw);
+                            obj = fn();
+                        } catch (thirdErr) {
+                            throw firstErr; // Throw validation error from first attempt
+                        }
                     }
                 }
 
@@ -1355,6 +1370,313 @@
             } catch (e) {
                 showError({ message: "修复失败: " + e.message });
             }
+        }
+
+        /**
+         * Fix truncated JSON by:
+         * 1. Removing incomplete key/value pairs (missing or partial quotes)
+         * 2. Removing trailing commas
+         * 3. Auto-completing missing brackets
+         */
+        function fixTruncatedJson(raw) {
+            raw = raw.trim();
+
+            // Step 1: Remove incomplete key/value pairs at both ends
+            raw = removeIncompleteKeyValuePairs(raw);
+
+            // Step 2: Clean up trailing and leading commas
+            raw = cleanupExtraCommas(raw);
+
+            // Step 3: Auto-complete missing brackets
+            raw = autoCompleteBrackets(raw);
+
+            // Step 4: Wrap bare key-value pairs in braces
+            // If it contains a colon but doesn't start with { or [, wrap it
+            if (raw.includes(':') && !raw.startsWith('{') && !raw.startsWith('[')) {
+                raw = '{' + raw + '}';
+            }
+
+            return raw;
+        }
+
+        /**
+         * Remove incomplete key/value pairs from the start and end of JSON
+         * A string is incomplete if it's missing opening or closing quotes
+         */
+        function removeIncompleteKeyValuePairs(raw) {
+            raw = raw.trim();
+            if (!raw) return "";
+
+            // Step 1: Handle broken content at the very START first
+            // This must be done before quote counting since broken starts affect quote balance
+
+            // Case 1a: Handle partial content at start (no opening brace/bracket/quote)
+            // e.g., me": "test", "id": 1} -> skip the broken key-value pair
+            if (raw.length > 0 && !raw.match(/^[{\["]/)) {
+                const firstQuote = raw.indexOf('"');
+                const firstColon = raw.indexOf(':');
+                // If colon comes before the first quote, it's a broken key-value
+                if (firstColon !== -1 && (firstQuote === -1 || firstColon < firstQuote)) {
+                    // Remove the broken key-value pair (skip to after the value)
+                    const regex = /^[^"{\[\s]+"\s*:\s*("[^"]*"|[\d.]+|true|false|null)\s*,?\s*/;
+                    const match = raw.match(regex);
+                    if (match) {
+                        raw = raw.substring(match[0].length).trim();
+                    } else {
+                        // Fallback: skip to after the first comma
+                        const comma = raw.indexOf(',');
+                        if (comma !== -1) {
+                            raw = raw.substring(comma + 1).trim();
+                        } else {
+                            // Or skip to first structure
+                            const brace = raw.indexOf('{');
+                            const bracket = raw.indexOf('[');
+                            const start = (brace === -1) ? bracket : (bracket === -1 ? brace : Math.min(brace, bracket));
+                            if (start !== -1) {
+                                raw = raw.substring(start);
+                            } else {
+                                raw = "";
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Case 1b: Handle broken key at start of object
+            // e.g., {name": "test", "id": 1} -> remove the broken key-value pair
+            if (raw.startsWith('{')) {
+                const brokenKeyMatch = raw.match(/^\{\s*[^"{\[\s][^:]*":\s*("([^"\\]|\\.)*"|[\d.]+|true|false|null)\s*,?/);
+                if (brokenKeyMatch) {
+                    raw = '{' + raw.substring(brokenKeyMatch[0].length).trim();
+                }
+            }
+
+            // Step 2: Handle unclosed strings at the END
+            // Use inString state tracking instead of simple counting (more accurate)
+            let inString = false;
+            let lastQuoteIndex = -1;
+            for (let i = 0; i < raw.length; i++) {
+                if (raw[i] === '\\' && inString && i + 1 < raw.length) {
+                    i++; // Skip escaped character
+                    continue;
+                }
+                if (raw[i] === '"') {
+                    inString = !inString;
+                    lastQuoteIndex = i;
+                }
+            }
+            // If we end inside a string, truncate at the last opening quote
+            if (inString && lastQuoteIndex !== -1) {
+                raw = raw.substring(0, lastQuoteIndex).trim();
+            }
+
+            // Step 3: Remove trailing incomplete parts (repeatedly until stable)
+            let lastRaw;
+            do {
+                lastRaw = raw;
+                // Remove trailing commas
+                raw = raw.replace(/,\s*$/, '').trim();
+                // Remove trailing colon (key with no value): "key":
+                raw = raw.replace(/"[^"]*"\s*:\s*$/, '').trim();
+                // Remove trailing key without colon/value: , "key" or { "key"
+                raw = raw.replace(/([,{\[])\s*"[^"]*"\s*$/, '$1').trim();
+            } while (raw !== lastRaw);
+
+            return raw.trim();
+        }
+
+        /**
+         * Find the end of a JSON value (string, number, object, array, boolean, null)
+         * Returns the index after the value ends, or -1 if can't determine
+         */
+        function findValueEnd(str) {
+            str = str.trim();
+            if (!str) return -1;
+
+            if (str.startsWith('"')) {
+                // String value - find closing quote (handle escapes)
+                let i = 1;
+                while (i < str.length) {
+                    if (str[i] === '\\' && i + 1 < str.length) {
+                        i += 2;
+                    } else if (str[i] === '"') {
+                        return i + 1;
+                    } else {
+                        i++;
+                    }
+                }
+                return -1; // Unclosed string
+            } else if (str.startsWith('{') || str.startsWith('[')) {
+                // Object or Array - find matching bracket
+                const openBracket = str[0];
+                const closeBracket = openBracket === '{' ? '}' : ']';
+                let depth = 1;
+                let i = 1;
+                let inString = false;
+                while (i < str.length && depth > 0) {
+                    if (str[i] === '\\' && inString && i + 1 < str.length) {
+                        i += 2;
+                        continue;
+                    }
+                    if (str[i] === '"') inString = !inString;
+                    if (!inString) {
+                        if (str[i] === openBracket) depth++;
+                        if (str[i] === closeBracket) depth--;
+                    }
+                    i++;
+                }
+                return depth === 0 ? i : -1;
+            } else {
+                // Number, boolean, null - find end (comma, bracket, or whitespace followed by structural char)
+                const match = str.match(/^(true|false|null|-?\d+\.?\d*(?:[eE][+-]?\d+)?)/);
+                if (match) {
+                    return match[0].length;
+                }
+                return -1;
+            }
+        }
+
+        /**
+         * Remove extra commas (leading, trailing, or consecutive)
+         */
+        function cleanupExtraCommas(raw) {
+            raw = raw.trim();
+
+            // Remove trailing commas before closing brackets
+            raw = raw.replace(/,(\s*[}\]])/g, '$1');
+
+            // Remove leading commas after opening brackets
+            raw = raw.replace(/([{\[])\s*,/g, '$1');
+
+            // Remove consecutive commas
+            raw = raw.replace(/,\s*,+/g, ',');
+
+            // Remove trailing commas at the very end
+            raw = raw.replace(/,\s*$/, '');
+
+            // Remove leading commas at the very start
+            raw = raw.replace(/^\s*,/, '');
+
+            return raw.trim();
+        }
+
+        /**
+         * Auto-complete missing brackets based on what's already in the JSON
+         */
+        function autoCompleteBrackets(raw) {
+            raw = raw.trim();
+            if (!raw) return raw;
+
+            // Count brackets to determine what's missing
+            let braceCount = 0; // {}
+            let bracketCount = 0; // []
+            let inString = false;
+
+            // Track the order of opening brackets to know how to close them
+            const openBrackets = [];
+
+            for (let i = 0; i < raw.length; i++) {
+                const char = raw[i];
+
+                // Handle escape sequences in strings
+                if (char === '\\' && inString && i + 1 < raw.length) {
+                    i++; // Skip next character
+                    continue;
+                }
+
+                if (char === '"') {
+                    inString = !inString;
+                    continue;
+                }
+
+                if (inString) continue;
+
+                if (char === '{') {
+                    braceCount++;
+                    openBrackets.push('{');
+                } else if (char === '}') {
+                    braceCount--;
+                    if (openBrackets.length > 0 && openBrackets[openBrackets.length - 1] === '{') {
+                        openBrackets.pop();
+                    }
+                } else if (char === '[') {
+                    bracketCount++;
+                    openBrackets.push('[');
+                } else if (char === ']') {
+                    bracketCount--;
+                    if (openBrackets.length > 0 && openBrackets[openBrackets.length - 1] === '[') {
+                        openBrackets.pop();
+                    }
+                }
+            }
+
+            // If we're still in a string (incomplete string at end), remove it
+            if (inString) {
+                // Find the last unmatched quote and remove everything from there
+                const lastQuote = raw.lastIndexOf('"');
+                if (lastQuote !== -1) {
+                    raw = raw.slice(0, lastQuote);
+                    raw = cleanupExtraCommas(raw);
+                    // Recalculate brackets after removing incomplete string
+                    return autoCompleteBrackets(raw);
+                }
+            }
+
+            // Add missing closing brackets (for truncated end)
+            if (openBrackets.length > 0) {
+                // Need to add closing brackets in reverse order
+                for (let i = openBrackets.length - 1; i >= 0; i--) {
+                    raw += openBrackets[i] === '{' ? '}' : ']';
+                }
+            }
+
+            // Add missing opening brackets (for truncated start)
+            // This is trickier - we need to detect if we have extra closing brackets
+            braceCount = 0;
+            bracketCount = 0;
+            inString = false;
+            const missingOpeners = [];
+
+            for (let i = 0; i < raw.length; i++) {
+                const char = raw[i];
+
+                if (char === '\\' && inString && i + 1 < raw.length) {
+                    i++;
+                    continue;
+                }
+
+                if (char === '"') {
+                    inString = !inString;
+                    continue;
+                }
+
+                if (inString) continue;
+
+                if (char === '{') {
+                    braceCount++;
+                } else if (char === '}') {
+                    braceCount--;
+                    if (braceCount < 0) {
+                        missingOpeners.unshift('{');
+                        braceCount = 0;
+                    }
+                } else if (char === '[') {
+                    bracketCount++;
+                } else if (char === ']') {
+                    bracketCount--;
+                    if (bracketCount < 0) {
+                        missingOpeners.unshift('[');
+                        bracketCount = 0;
+                    }
+                }
+            }
+
+            // Prepend missing opening brackets
+            if (missingOpeners.length > 0) {
+                raw = missingOpeners.join('') + raw;
+            }
+
+            return raw;
         }
 
         function clearAll() {
