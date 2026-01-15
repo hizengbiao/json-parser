@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.59</span>
+            <span>V1.60</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,11 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月16日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.60</div>
+                        <div class="changelog-desc">修复增强：自动为未加引号的 Key 和 Value 添加引号（如 `{name: 张三}` 自动变成 `{"name":
+                            "张三"}`）。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.59</div>
                         <div class="changelog-desc">智能截断修复：支持自动补全不完整的 JSON（如被截断的长文本），自动删除不完整的键值对、清理多余逗号、补全缺失的括号。</div>
@@ -1341,6 +1346,9 @@
                 const jsonpMatch = raw.match(/^\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(([\s\S]*)\)\s*;?\s*$/);
                 if (jsonpMatch && jsonpMatch[1]) raw = jsonpMatch[1];
 
+                // 3. Add quotes to unquoted keys and string values (JavaScript object literal -> JSON)
+                raw = addQuotesToUnquotedStrings(raw);
+
                 let obj;
                 try {
                     const fn = new Function("return " + raw);
@@ -1370,6 +1378,112 @@
             } catch (e) {
                 showError({ message: "修复失败: " + e.message });
             }
+        }
+
+        /**
+         * Add quotes to unquoted keys and string values (JavaScript object literal -> JSON)
+         * Handles patterns like: {nickname: 张三, age: 18} -> {"nickname": "张三", "age": 18}
+         */
+        function addQuotesToUnquotedStrings(raw) {
+            // Skip if it looks like valid JSON already (starts with quote for first key)
+            if (raw.match(/^\s*\{\s*"/)) {
+                return raw;
+            }
+
+            let result = '';
+            let i = 0;
+            let inString = false;
+            let stringChar = '';
+
+            while (i < raw.length) {
+                const char = raw[i];
+
+                // Handle string literals (already quoted)
+                if ((char === '"' || char === "'") && (i === 0 || raw[i - 1] !== '\\')) {
+                    if (!inString) {
+                        inString = true;
+                        stringChar = char;
+                        result += '"'; // Normalize to double quotes
+                        i++;
+                        continue;
+                    } else if (char === stringChar) {
+                        inString = false;
+                        result += '"'; // Normalize to double quotes
+                        i++;
+                        continue;
+                    }
+                }
+
+                if (inString) {
+                    // Inside a string, just copy (escape double quotes if using single quote string)
+                    if (char === '"' && stringChar === "'") {
+                        result += '\\"';
+                    } else {
+                        result += char;
+                    }
+                    i++;
+                    continue;
+                }
+
+                // Skip whitespace
+                if (/\s/.test(char)) {
+                    result += char;
+                    i++;
+                    continue;
+                }
+
+                // Handle structural characters
+                if ('{}[],:'.includes(char)) {
+                    result += char;
+                    i++;
+                    continue;
+                }
+
+                // Found an unquoted token - determine if it's a key or value
+                // Look for the end of this token
+                let tokenEnd = i;
+                while (tokenEnd < raw.length && !/[\s{}[\],:"]/.test(raw[tokenEnd])) {
+                    tokenEnd++;
+                }
+                const token = raw.slice(i, tokenEnd);
+
+                // Check what comes after the token (skip whitespace)
+                let afterToken = tokenEnd;
+                while (afterToken < raw.length && /\s/.test(raw[afterToken])) {
+                    afterToken++;
+                }
+                const nextChar = raw[afterToken];
+
+                // Determine if this is a key (followed by :) or value
+                const isKey = nextChar === ':';
+
+                // Check if it's a special value that doesn't need quotes
+                const isSpecialValue = /^(true|false|null|undefined|NaN|Infinity|-Infinity)$/.test(token);
+                const isNumber = /^-?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(token);
+
+                if (isKey) {
+                    // It's a key - always quote it
+                    result += '"' + token + '"';
+                } else if (isSpecialValue) {
+                    // Special values: convert undefined to null, keep others
+                    if (token === 'undefined') {
+                        result += 'null';
+                    } else {
+                        result += token;
+                    }
+                } else if (isNumber) {
+                    // Numbers don't need quotes
+                    result += token;
+                } else {
+                    // It's an unquoted string value - add quotes
+                    // Escape any internal quotes
+                    result += '"' + token.replace(/"/g, '\\"') + '"';
+                }
+
+                i = tokenEnd;
+            }
+
+            return result;
         }
 
         /**
