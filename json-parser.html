@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.67</span>
+            <span>V1.68</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月22日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.68</div>
+                        <div class="changelog-desc">编辑优化：编辑 key/value 后重新渲染时保持原有的折叠/展开状态，避免编辑后所有节点被自动展开。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.67</div>
                         <div class="changelog-desc">编辑优化：点击顶部"编辑"按钮时，输入框内容同步为格式化后的 JSON（带缩进），而不是原始输入。</div>
@@ -2103,9 +2107,44 @@
         }
 
         function reRenderTree() {
+            // Save collapsed state before re-rendering
+            const collapsedPaths = getCollapsedPaths();
+
             outputDiv.innerHTML = '';
             const tree = buildTree(currentObj, 0, null, true, []);
             outputDiv.appendChild(tree);
+
+            // Restore collapsed state after re-rendering
+            restoreCollapsedPaths(collapsedPaths);
+        }
+
+        /**
+         * Get all collapsed node paths
+         */
+        function getCollapsedPaths() {
+            const paths = [];
+            const collapsedNodes = document.querySelectorAll('.json-node.collapsed');
+            collapsedNodes.forEach(node => {
+                if (node.dataset.path) {
+                    paths.push(node.dataset.path);
+                }
+            });
+            return paths;
+        }
+
+        /**
+         * Restore collapsed state for given paths
+         */
+        function restoreCollapsedPaths(paths) {
+            paths.forEach(pathStr => {
+                const nodes = document.querySelectorAll('.json-node');
+                nodes.forEach(node => {
+                    if (node.dataset.path === pathStr) {
+                        node.classList.remove('expanded');
+                        node.classList.add('collapsed');
+                    }
+                });
+            });
         }
 
         function sortObject(obj, asc) {
