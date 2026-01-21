@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.68</span>
+            <span>V1.69</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月22日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.69</div>
+                        <div class="changelog-desc">编辑优化：点击键或值进行编辑时，默认全选输入框中的所有内容，方便直接替换。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.68</div>
                         <div class="changelog-desc">编辑优化：编辑 key/value 后重新渲染时保持原有的折叠/展开状态，避免编辑后所有节点被自动展开。</div>
@@ -3226,6 +3230,7 @@
 
             element.replaceWith(input);
             input.focus();
+            input.select(); // Select all content
         }
 
         function handleEditValue(element, path, oldVal) {
@@ -3313,6 +3318,7 @@
 
             element.replaceWith(input);
             input.focus();
+            input.select(); // Select all content
         }
 
         function setValueByPath(path, value) {
