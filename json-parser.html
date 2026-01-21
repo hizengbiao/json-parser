@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.63</span>
+            <span>V1.64</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -824,8 +824,13 @@
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月22日</div>
                     <div class="changelog-entry">
+                        <div class="changelog-version">V1.64</div>
+                        <div class="changelog-desc">编辑器增强：点击引号时高亮匹配的对应引号，与括号匹配使用相同的橙红色脉冲动画效果。</div>
+                    </div>
+                    <div class="changelog-entry">
                         <div class="changelog-version">V1.63</div>
-                        <div class="changelog-desc">修复增强：更全面地支持去除 JSON 前后的标签（如 `[[TAG]]`、`[TAG]`、`[TAG]...[/TAG]`
+                        <div class="changelog-desc">修复增强：更全面地支持去除 JSON 前后的标签（如
+                            `[[TAG]]`、`[TAG]`、`[tag]`、`[TAG]...[/TAG]`
                             等），可处理只有开始标签、只有结束标签或两边都有的情况。</div>
                     </div>
                     <div class="changelog-entry">
@@ -2848,6 +2853,68 @@
                 return -1; // No match found
             }
 
+            /**
+             * Find matching quote for the quote at the given position
+             * If it's an opening quote (not preceded by \), find the closing quote
+             * If it's a closing quote, find the opening quote
+             */
+            function findMatchingQuote(text, quotePos) {
+                const quoteChar = text[quotePos];
+                if (quoteChar !== '"' && quoteChar !== "'") return -1;
+
+                // Check if this quote is escaped
+                let escapeCount = 0;
+                for (let i = quotePos - 1; i >= 0 && text[i] === '\\'; i--) {
+                    escapeCount++;
+                }
+                if (escapeCount % 2 === 1) return -1; // This quote is escaped
+
+                // Determine if this is an opening or closing quote by counting unescaped quotes before it
+                let quoteCount = 0;
+                for (let i = 0; i < quotePos; i++) {
+                    if (text[i] === quoteChar) {
+                        // Check if escaped
+                        let esc = 0;
+                        for (let j = i - 1; j >= 0 && text[j] === '\\'; j--) {
+                            esc++;
+                        }
+                        if (esc % 2 === 0) {
+                            quoteCount++;
+                        }
+                    }
+                }
+
+                // If quoteCount is even, this is an opening quote; if odd, it's a closing quote
+                if (quoteCount % 2 === 0) {
+                    // Opening quote - find closing quote forward
+                    for (let i = quotePos + 1; i < text.length; i++) {
+                        if (text[i] === quoteChar) {
+                            let esc = 0;
+                            for (let j = i - 1; j >= 0 && text[j] === '\\'; j--) {
+                                esc++;
+                            }
+                            if (esc % 2 === 0) {
+                                return i;
+                            }
+                        }
+                    }
+                } else {
+                    // Closing quote - find opening quote backward
+                    for (let i = quotePos - 1; i >= 0; i--) {
+                        if (text[i] === quoteChar) {
+                            let esc = 0;
+                            for (let j = i - 1; j >= 0 && text[j] === '\\'; j--) {
+                                esc++;
+                            }
+                            if (esc % 2 === 0) {
+                                return i;
+                            }
+                        }
+                    }
+                }
+                return -1;
+            }
+
             function getTextPosition(textarea, charIndex) {
                 // Create a hidden div to measure text positions
                 const fullText = textarea.value;
@@ -2958,6 +3025,14 @@
                             return;
                         }
                     }
+                    // Quote -> highlight matching quote
+                    if (charBeforeCursor === '"' || charBeforeCursor === "'") {
+                        const matchPos = findMatchingQuote(text, pos - 1);
+                        if (matchPos >= 0) {
+                            highlightBracket(matchPos);
+                            return;
+                        }
+                    }
                 }
 
                 // Check character at cursor position
@@ -2979,6 +3054,14 @@
                             return;
                         }
                     }
+                    // Quote -> highlight matching quote
+                    if (charAtCursor === '"' || charAtCursor === "'") {
+                        const matchPos = findMatchingQuote(text, pos);
+                        if (matchPos >= 0) {
+                            highlightBracket(matchPos);
+                            return;
+                        }
+                    }
                 }
 
                 removeHighlight();
@@ -2987,8 +3070,8 @@
             // Listen for click and keyboard navigation
             textarea.addEventListener('click', checkBracketMatch);
             textarea.addEventListener('keyup', (e) => {
-                // Only check on navigation keys or after typing brackets
-                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', '(', '[', '{', ')', ']', '}'].includes(e.key)) {
+                // Only check on navigation keys or after typing brackets/quotes
+                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', '(', '[', '{', ')', ']', '}', '"', "'"].includes(e.key)) {
                     checkBracketMatch();
                 }
             });
