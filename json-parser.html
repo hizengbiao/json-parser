@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.65</span>
+            <span>V1.66</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月22日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.66</div>
+                        <div class="changelog-desc">修复优化：点击"修复"时先尝试直接解析，如果 JSON 已经有效则直接格式化，避免对有效 JSON 执行修复逻辑导致报错。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.65</div>
                         <div class="changelog-desc">编辑优化：编辑字符串类型的值时保持原类型，不再自动将转义的 JSON 字符串解析为对象（如
@@ -1312,6 +1316,19 @@
         function fixJson() {
             let raw = inputArea.value.trim();
             if (!raw) return;
+
+            // First, try to parse as-is. If it's already valid JSON, just format it
+            try {
+                const parsed = JSON.parse(raw);
+                inputArea.value = JSON.stringify(parsed, null, 4);
+                saveState();
+                handleFormat();
+                showToast("JSON 已有效，已直接格式化 ✅");
+                return;
+            } catch (e) {
+                // Not valid JSON, continue with fix logic
+            }
+
             try {
                 // Remove single-line and multi-line comments
                 raw = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
