@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.62</span>
+            <span>V1.63</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,11 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月22日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.63</div>
+                        <div class="changelog-desc">修复增强：更全面地支持去除 JSON 前后的标签（如 `[[TAG]]`、`[TAG]`、`[TAG]...[/TAG]`
+                            等），可处理只有开始标签、只有结束标签或两边都有的情况。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.62</div>
                         <div class="changelog-desc">修复增强：支持中文/英文冒号自动处理（如 `key ： value` 或 `key : value` 自动转为 `"key":
@@ -1301,10 +1306,6 @@
                 // Remove single-line and multi-line comments
                 raw = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
-                // 0-pre. Replace Chinese full-width colon with standard colon
-                // Handle pattern: "key ： value" -> "key" : "value"
-                raw = fixChineseColons(raw);
-
                 // 0. Remove trailing comma or period (common copy-paste artifacts)
                 raw = raw.replace(/[,，.。]+\s*$/, "");
 
@@ -1314,21 +1315,20 @@
                     raw = raw.slice(1, -1);
                 }
 
-                // 0b. Strip double-bracket tags like [[xxx]] at start and end
-                // Pattern: [[tag]]content[[tag]] or [[tag]]content[[/tag]]
-                const doubleBracketMatch = raw.match(/^\[\[([^\]]+)\]\]([\s\S]*)\[\[\/?[^\]]+\]\]$/);
-                if (doubleBracketMatch && doubleBracketMatch[2]) {
-                    raw = doubleBracketMatch[2].trim();
-                }
-                // Also handle case where [[tag]] appears only at start or only at end
-                raw = raw.replace(/^\[\[[^\]]+\]\]\s*/, ""); // Remove [[xxx]] at start
-                raw = raw.replace(/\s*\[\[\/?[^\]]+\]\]$/, ""); // Remove [[xxx]] or [[/xxx]] at end
+                // 0b. Strip double-bracket tags like [[xxx]] at start and/or end
+                // Handles: [[tag]]content[[tag]], [[tag]]content[[/tag]], [[tag]]content, content[[tag]]
+                // Remove [[xxx]] or [[/xxx]] at start (with optional newline/whitespace)
+                raw = raw.replace(/^\s*\[\[[^\]]+\]\]\s*/, "");
+                // Remove [[xxx]] or [[/xxx]] at end
+                raw = raw.replace(/\s*\[\[\/?[^\]]+\]\]\s*$/, "");
 
-                // 0c. Strip wrapper tags like [XXX]...[/XXX] or [XXX]...[XXX] (single bracket)
-                const tagMatch = raw.match(/^\[([^\]]+)\]([\s\S]*)\[\/?[^\]]+\]$/);
-                if (tagMatch && tagMatch[2]) {
-                    raw = tagMatch[2].trim();
-                }
+                // 0c. Strip single-bracket tags like [XXX] at start and/or end
+                // Handles: [tag]content[tag], [tag]content[/tag], [tag]content, content[/tag]
+                // Be careful not to remove JSON array brackets - only remove if it looks like a tag (uppercase, no spaces inside)
+                // Remove [TAG] or [tag] at start (tag should be letters/underscores, not starting with { or ")
+                raw = raw.replace(/^\s*\[([A-Za-z_][A-Za-z0-9_]*)\]\s*/, "");
+                // Remove [TAG], [/TAG], [tag], or [/tag] at end
+                raw = raw.replace(/\s*\[\/?([A-Za-z_][A-Za-z0-9_]*)\]\s*$/, "");
 
                 // 0d. Check again for outer quotes after tag removal
                 raw = raw.trim();
@@ -1339,6 +1339,10 @@
 
                 // 0e. Remove trailing comma or period again after stripping
                 raw = raw.replace(/[,，.。]+\s*$/, "");
+
+                // 0f. Replace Chinese full-width colon with standard colon (AFTER tag removal)
+                // Handle pattern: "key ： value" -> "key" : "value"
+                raw = fixChineseColons(raw);
 
                 // 1. Remove backslash-newline continuations (line continuation)
                 raw = raw.replace(/\\\r?\n/g, "");
@@ -1416,8 +1420,15 @@
                 let line = lines[i];
                 const trimmedLine = line.trim();
 
-                // Skip empty lines, pure brackets, or lines that look like valid JSON (key starts with ")
-                if (!trimmedLine || /^[{}\[\],]+$/.test(trimmedLine) || trimmedLine.startsWith('"')) {
+                // Skip empty lines, pure brackets, or lines that look like valid JSON
+                // - starts with " (quoted key)
+                // - starts with { or [ (JSON structure)
+                // - is just brackets/commas
+                if (!trimmedLine ||
+                    /^[{}\[\],]+$/.test(trimmedLine) ||
+                    trimmedLine.startsWith('"') ||
+                    trimmedLine.startsWith('{') ||
+                    trimmedLine.startsWith('[')) {
                     result.push(line);
                     continue;
                 }
