@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.66</span>
+            <span>V1.67</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,10 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月22日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.67</div>
+                        <div class="changelog-desc">编辑优化：点击顶部"编辑"按钮时，输入框内容同步为格式化后的 JSON（带缩进），而不是原始输入。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.66</div>
                         <div class="changelog-desc">修复优化：点击"修复"时先尝试直接解析，如果 JSON 已经有效则直接格式化，避免对有效 JSON 执行修复逻辑导致报错。</div>
@@ -1252,7 +1256,12 @@
         }
 
         function showEditor() {
-            ensureSynced();
+            // If we have a parsed object, sync the formatted content to the input area
+            if (currentObj !== null) {
+                inputArea.value = JSON.stringify(currentObj, null, 4);
+                sourceDirty = false;
+                saveState();
+            }
             switchMode('source');
         }
 
