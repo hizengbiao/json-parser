@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.61</span>
+            <span>V1.62</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -821,6 +821,15 @@
                 <button class="close-modal" onclick="closeChangelog()">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="changelog-date-group">
+                    <div class="changelog-date">2026年1月22日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.62</div>
+                        <div class="changelog-desc">修复增强：支持中文/英文冒号自动处理（如 `key ： value` 或 `key : value` 自动转为 `"key":
+                            "value"`）；逗号分隔的大数字自动转为字符串数组（避免精度丢失）；嵌套对象中的键值对自动加引号。</div>
+                    </div>
+                </div>
+
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月16日</div>
                     <div class="changelog-entry">
@@ -1292,6 +1301,10 @@
                 // Remove single-line and multi-line comments
                 raw = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
+                // 0-pre. Replace Chinese full-width colon with standard colon
+                // Handle pattern: "key ： value" -> "key" : "value"
+                raw = fixChineseColons(raw);
+
                 // 0. Remove trailing comma or period (common copy-paste artifacts)
                 raw = raw.replace(/[,，.。]+\s*$/, "");
 
@@ -1385,6 +1398,122 @@
             } catch (e) {
                 showError({ message: "修复失败: " + e.message });
             }
+        }
+
+        /**
+         * Fix Chinese colons, English colons with unquoted key-value pairs
+         * Handles patterns like:
+         *   logType ： TCPSNOOP  ->  "logType" : "TCPSNOOP"
+         *   logType : TCPSNOOP  ->  "logType" : "TCPSNOOP"
+         *   _searchSort : 1768352359227000000,-9223372036854775808  ->  "_searchSort" : ["1768352359227000000","-9223372036854775808"]
+         *   additional-info : { ... }  ->  "additional-info" : { ... }
+         */
+        function fixChineseColons(raw) {
+            const lines = raw.split('\n');
+            const result = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                const trimmedLine = line.trim();
+
+                // Skip empty lines, pure brackets, or lines that look like valid JSON (key starts with ")
+                if (!trimmedLine || /^[{}\[\],]+$/.test(trimmedLine) || trimmedLine.startsWith('"')) {
+                    result.push(line);
+                    continue;
+                }
+
+                // Check if line contains Chinese colon (：) or English colon (:) with unquoted key
+                // Pattern: unquoted_key : value  or  unquoted_key ： value
+                const chineseColonIndex = line.indexOf('：');
+                const englishColonIndex = line.indexOf(':');
+
+                let colonIndex = -1;
+                let colonChar = '';
+
+                if (chineseColonIndex !== -1 && (englishColonIndex === -1 || chineseColonIndex < englishColonIndex)) {
+                    colonIndex = chineseColonIndex;
+                    colonChar = '：';
+                } else if (englishColonIndex !== -1) {
+                    colonIndex = englishColonIndex;
+                    colonChar = ':';
+                }
+
+                if (colonIndex !== -1) {
+                    let keyPart = line.substring(0, colonIndex).trim();
+                    let valuePart = line.substring(colonIndex + 1).trim();
+
+                    // Get the leading whitespace for indentation
+                    const leadingWhitespace = line.match(/^(\s*)/)[1];
+
+                    // Only process if the key is not already quoted (unquoted key-value pair)
+                    if (!keyPart.startsWith('"') && !keyPart.startsWith("'") && keyPart.length > 0) {
+                        // Quote the key - handle keys with special characters like @, -, _
+                        keyPart = '"' + keyPart + '"';
+
+                        // Handle the value part
+                        if (valuePart === '{' || valuePart === '[') {
+                            // Opening bracket for nested structure - keep as is
+                            line = leadingWhitespace + keyPart + ': ' + valuePart;
+                        } else if (valuePart === '' || valuePart === '}' || valuePart === ']') {
+                            // Empty value or closing bracket
+                            line = leadingWhitespace + keyPart + ': ' + valuePart;
+                        } else if (isCommasSeparatedNumbers(valuePart)) {
+                            // Convert comma-separated numbers to string array
+                            // Pattern: 1768352359227000000,-9223372036854775808
+                            const numbers = valuePart.split(',').map(n => n.trim());
+                            const jsonArray = JSON.stringify(numbers);
+                            line = leadingWhitespace + keyPart + ': ' + jsonArray;
+                        } else if (isJsonPrimitive(valuePart)) {
+                            // Boolean, null, or number
+                            line = leadingWhitespace + keyPart + ': ' + valuePart;
+                        } else {
+                            // String value - quote it if not already quoted
+                            if (!valuePart.startsWith('"') && !valuePart.startsWith("'") &&
+                                !valuePart.startsWith('{') && !valuePart.startsWith('[')) {
+                                valuePart = '"' + valuePart.replace(/"/g, '\\"') + '"';
+                            }
+                            line = leadingWhitespace + keyPart + ': ' + valuePart;
+                        }
+                    }
+                }
+
+                result.push(line);
+            }
+
+            return result.join('\n');
+        }
+
+        /**
+         * Check if a value looks like comma-separated numbers (possibly large integers)
+         * Pattern: 1768352359227000000,-9223372036854775808
+         */
+        function isCommasSeparatedNumbers(value) {
+            // Must contain at least one comma
+            if (!value.includes(',')) return false;
+
+            // Split by comma and check if all parts are numbers
+            const parts = value.split(',');
+            if (parts.length < 2) return false;
+
+            for (const part of parts) {
+                const trimmed = part.trim();
+                // Check if it's a valid number (including negative and scientific notation)
+                if (!/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(trimmed)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /**
+         * Check if a value is a JSON primitive (boolean, null, number)
+         */
+        function isJsonPrimitive(value) {
+            if (value === 'true' || value === 'false' || value === 'null') {
+                return true;
+            }
+            // Check if it's a number
+            return /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(value);
         }
 
         /**
