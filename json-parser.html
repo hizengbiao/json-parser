@@ -788,7 +788,7 @@
             <button class="icon-btn tree-only" onclick="sortJson(false)" title="按Key降序">⬆️ 降序</button>
         </div>
         <div class="version-info" onclick="showChangelog()" title="查看版本更新记录">
-            <span>V1.64</span>
+            <span>V1.65</span>
             <span>ℹ️</span>
         </div>
     </div>
@@ -823,6 +823,11 @@
             <div class="modal-body">
                 <div class="changelog-date-group">
                     <div class="changelog-date">2026年1月22日</div>
+                    <div class="changelog-entry">
+                        <div class="changelog-version">V1.65</div>
+                        <div class="changelog-desc">编辑优化：编辑字符串类型的值时保持原类型，不再自动将转义的 JSON 字符串解析为对象（如
+                            `"{\"key\":\"value\"}"` 编辑后仍保持为字符串）。</div>
+                    </div>
                     <div class="changelog-entry">
                         <div class="changelog-version">V1.64</div>
                         <div class="changelog-desc">编辑器增强：点击引号时高亮匹配的对应引号，与括号匹配使用相同的橙红色脉冲动画效果。</div>
@@ -2641,7 +2646,8 @@
             const span = document.createElement('span');
             if (typeof val === 'string') {
                 span.className = 'string';
-                span.textContent = `"${val}"`;
+                // Use JSON.stringify to preserve escape sequences like \" \\ \n etc.
+                span.textContent = JSON.stringify(val);
             } else if (typeof val === 'number') {
                 span.className = 'number';
                 span.textContent = val;
@@ -3158,7 +3164,8 @@
         }
 
         function handleEditValue(element, path, oldVal) {
-            const valStr = (typeof oldVal === 'string') ? oldVal : JSON.stringify(oldVal);
+            const wasString = typeof oldVal === 'string';
+            const valStr = wasString ? oldVal : JSON.stringify(oldVal);
             const input = document.createElement('textarea');
             input.value = valStr;
             input.className = 'edit-input';
@@ -3173,10 +3180,18 @@
 
                 const raw = input.value;
                 let newVal;
-                try {
-                    newVal = JSON.parse(raw);
-                } catch (e) {
+
+                // If the original value was a string, keep it as a string
+                // Don't auto-parse JSON strings to avoid unintended type conversion
+                if (wasString) {
                     newVal = raw;
+                } else {
+                    // For non-string types, try to parse
+                    try {
+                        newVal = JSON.parse(raw);
+                    } catch (e) {
+                        newVal = raw;
+                    }
                 }
 
                 if (newVal !== oldVal) {
